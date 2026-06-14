@@ -25,8 +25,31 @@ export interface GamePlayer {
   fg3Pct?: number;    // three-point %
   ftPct?: number;     // free-throw %
   mpg?: number;       // minutes per game
+  ts?: number;        // true shooting %
+  usg?: number;       // usage %
+  pie?: number;       // player impact estimate
+  bio?: PlayerBio | null;
   rating: number;
   fame: number;
+}
+
+export interface PlayerBio {
+  height: string; weight: string; college: string; country: string;
+  draftYear: number | null; draftRound: number | null; draftNumber: number | null; jersey: string;
+}
+
+export interface SeasonLine {
+  season: string; club: string; gp: number; rating: number;
+  pts: number; reb: number; ast: number; stl: number; blk: number; fg3: number;
+  fgPct: number; fg3Pct: number; ftPct: number; mpg: number;
+  ts: number; usg: number; pie: number; netRtg: number;
+}
+
+export interface PlayerShots {
+  season: string;
+  total: number;
+  /** zone name -> [made, attempted] */
+  zones: Record<string, [number, number]>;
 }
 
 export interface GamesData {

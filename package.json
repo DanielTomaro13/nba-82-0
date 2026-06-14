@@ -9,9 +9,9 @@
   ],
   "scripts": {
     "data": "npm run build -w pipeline",
-    "seed": "npm run seed -w pipeline",
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "start": "npm run start -w web"
+    "start": "npm run start -w web",
+    "shots": "npm run shots -w pipeline"
   }
 }
