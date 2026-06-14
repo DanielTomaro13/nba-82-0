@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE.url}/play/`, priority: 0.9, changeFrequency: "weekly", lastModified: now },
     { url: `${SITE.url}/games/`, priority: 0.8, changeFrequency: "weekly", lastModified: now },
     { url: `${SITE.url}/ladder/`, priority: 0.8, changeFrequency: "daily", lastModified: now },
+    { url: `${SITE.url}/playoffs/`, priority: 0.8, changeFrequency: "daily", lastModified: now },
     { url: `${SITE.url}/players/`, priority: 0.8, changeFrequency: "weekly", lastModified: now },
     { url: `${SITE.url}/fixtures/`, priority: 0.7, changeFrequency: "daily", lastModified: now },
     { url: `${SITE.url}/stats/`, priority: 0.7, changeFrequency: "weekly", lastModified: now },

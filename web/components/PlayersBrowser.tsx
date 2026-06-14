@@ -3,9 +3,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ProfilePlayer } from "@/lib/playerdb";
 import { clubColors } from "@/lib/clubs";
-import { POS_GROUP } from "@/lib/format";
+import { posBucket } from "@/lib/format";
 
-const FILTERS = ["All", "Back", "Halves", "Forward"];
+const FILTERS: { key: string; label: string }[] = [
+  { key: "All", label: "All" }, { key: "G", label: "Guards" },
+  { key: "F", label: "Forwards" }, { key: "C", label: "Centers" },
+];
 
 export default function PlayersBrowser({ players }: { players: ProfilePlayer[] }) {
   const [q, setQ] = useState("");
@@ -13,7 +16,7 @@ export default function PlayersBrowser({ players }: { players: ProfilePlayer[] }
   const shown = useMemo(() => {
     const query = q.trim().toLowerCase();
     return players
-      .filter((p) => filter === "All" || POS_GROUP[p.pos] === filter)
+      .filter((p) => filter === "All" || posBucket(p.pos) === filter)
       .filter((p) => !query || p.name.toLowerCase().includes(query) || p.club.toLowerCase().includes(query))
       .slice(0, 150);
   }, [players, q, filter]);
@@ -24,9 +27,9 @@ export default function PlayersBrowser({ players }: { players: ProfilePlayer[] }
         style={{ width: "100%", padding: ".7rem .9rem", borderRadius: 10, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" }} />
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {FILTERS.map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className="chip"
-            style={{ cursor: "pointer", borderColor: filter === f ? "var(--accent)" : "var(--border)", color: filter === f ? "var(--text)" : "var(--muted)" }}>
-            {f}
+          <button key={f.key} onClick={() => setFilter(f.key)} className="chip"
+            style={{ cursor: "pointer", borderColor: filter === f.key ? "var(--accent)" : "var(--border)", color: filter === f.key ? "var(--text)" : "var(--muted)" }}>
+            {f.label}
           </button>
         ))}
       </div>

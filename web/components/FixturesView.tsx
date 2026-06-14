@@ -1,31 +1,48 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadResults, type Results, type MatchResult } from "@/lib/data";
 import { clubColors } from "@/lib/clubs";
+
+const sel: React.CSSProperties = { padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" };
 
 export default function FixturesView() {
   const [data, setData] = useState<Results | null>(null);
   const [season, setSeason] = useState("");
+  const [week, setWeek] = useState<string>("");
   useEffect(() => { loadResults().then((r) => { setData(r); setSeason(r.seasons[0]); }); }, []);
-  if (!data) return <p style={{ color: "var(--muted)" }}>Loading fixtures…</p>;
-  const matches = data.bySeason[season] ?? [];
+
+  const weeks = useMemo(() => {
+    const ws = new Set<number>();
+    for (const m of data?.bySeason[season] ?? []) ws.add(m.round || 0);
+    return [...ws].sort((a, b) => a - b);
+  }, [data, season]);
+
+  // default to the latest week when the season changes
+  useEffect(() => { if (weeks.length) setWeek(String(weeks[weeks.length - 1])); }, [weeks]);
+
+  if (!data) return <p style={{ color: "var(--muted)" }}>Loading the schedule…</p>;
+  const matches = (data.bySeason[season] ?? []).filter((m) => week === "all" || String(m.round || 0) === week);
   const byRound = new Map<number, MatchResult[]>();
   for (const m of matches) { const k = m.round || 0; if (!byRound.has(k)) byRound.set(k, []); byRound.get(k)!.push(m); }
   const rounds = [...byRound.keys()].sort((a, b) => b - a);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <label style={{ fontSize: ".82rem", color: "var(--muted)" }}>Season</label>
-        <select value={season} onChange={(e) => setSeason(e.target.value)}
-          style={{ padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" }}>
+        <select value={season} onChange={(e) => setSeason(e.target.value)} style={sel}>
           {data.seasons.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <label style={{ fontSize: ".82rem", color: "var(--muted)" }}>Week</label>
+        <select value={week} onChange={(e) => setWeek(e.target.value)} style={sel}>
+          <option value="all">All weeks</option>
+          {weeks.map((w) => <option key={w} value={String(w)}>Week {w}</option>)}
         </select>
       </div>
       {rounds.map((rd) => (
         <div key={rd}>
           <div style={{ fontSize: ".74rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>
-            {rd ? `Round ${rd}` : "Other"}
+            {rd ? `Week ${rd}` : "Other"}
           </div>
           <div className="grid-cards">
             {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} />)}

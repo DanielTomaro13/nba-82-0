@@ -87,7 +87,9 @@ const orgEntityLd = {
   sameAs: [
     "https://afl23-0.com",
     "https://nrl24-0.com",
+    "https://mlb162-0.com",
     "https://footballinvincibles.com",
+    "https://f1slam.com",
     "https://twitter.com/nba820",
   ],
 };

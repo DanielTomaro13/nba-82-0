@@ -25,6 +25,9 @@ export interface Meta {
   latestSeason: string;
   clubs: string[];
   clubsBySeason: Record<string, string[]>;
+  teamMeta?: Record<string, { conf: string; div: string }>;
+  divisions?: Record<string, Record<string, string[]>>;
+  playoffsActive?: boolean;
 }
 
 export type Mode = "quick" | "classic" | "full17" | "cap" | "gauntlet" | "spoon";
@@ -37,6 +40,12 @@ export interface Slot {
 const STARTING_5: Slot[] = [
   { code: "PG", n: 1 }, { code: "SG", n: 2 }, { code: "SF", n: 3 },
   { code: "PF", n: 4 }, { code: "C", n: 5 },
+];
+
+// Starting five plus one bench spot (the 6th man).
+const STARTING_6: Slot[] = [
+  ...STARTING_5,
+  { code: "INT", n: 6 },
 ];
 
 const ROTATION_8: Slot[] = [
@@ -52,7 +61,7 @@ const ROSTER_13: Slot[] = [
 ];
 
 export const SQUADS: Record<Mode, Slot[]> = {
-  quick: STARTING_5,
+  quick: STARTING_6,
   classic: ROTATION_8,
   full17: ROSTER_13,
   cap: ROSTER_13,
@@ -70,13 +79,20 @@ export const REROLLS: Record<Mode, { club: number; era: number }> = {
 };
 
 export const MODE_INFO: Record<Mode, { name: string; tag: string; desc: string }> = {
-  quick: { name: "Starting Five", tag: "the spine", desc: "One player for each of the five positions — point guard through center. A fast all-time starting five." },
+  quick: { name: "Starting Six", tag: "the spine", desc: "One player for each of the five positions plus a bench spot — your 6th man. Versatile bench players get a small boost." },
   classic: { name: "Rotation Eight", tag: "the core", desc: "The starting five plus a three-man bench that takes any player. The unit that wins playoff games." },
   full17: { name: "Active Thirteen", tag: "deep bench", desc: "The full game-day 13: a starting five plus an eight-man bench. Depth wins championships." },
   cap: { name: "Salary Cap 13", tag: "hard mode", desc: "Build a 13-man roster under the salary cap. Superstars cost a fortune — spend like a GM." },
   gauntlet: { name: "The Gauntlet", tag: "survival", desc: "Draft an eight-man rotation, then beat every season's champion head-to-head. Lose once and the run is over." },
   spoon: { name: "The Tank", tag: "anti-ball", desc: "Build the worst starting five imaginable and chase a perfect 0–82. Harder than it sounds." },
 };
+
+/** A versatile player coming off the bench (an INT slot) gets a small boost. */
+export const BENCH_BOOST = 1.05;
+export function effectiveRating(p: { rating: number; elig?: string[] }, isBench: boolean): number {
+  if (isBench && (p.elig?.length ?? 1) > 1) return Math.min(99, Math.round(p.rating * BENCH_BOOST));
+  return p.rating;
+}
 
 /** Salary cap mode — a player's price ($) modelled off their rating. */
 export const SALARY_CAP = 165_000_000;

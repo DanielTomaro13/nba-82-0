@@ -102,8 +102,10 @@ export default function AboutPage() {
       <p style={{ fontSize: ".8rem", color: "var(--muted)" }}>
         NBA 82-0 is unofficial and not affiliated with the NBA or any team. Part of the 0 Series alongside{" "}
         <a href="https://afl23-0.com" style={{ color: "var(--accent)" }}>AFL 23-0</a>,{" "}
-        <a href="https://nrl24-0.com" style={{ color: "var(--accent)" }}>NRL 24-0</a> and{" "}
-        <a href="https://footballinvincibles.com" style={{ color: "var(--accent)" }}>Football Invincibles</a>.
+        <a href="https://nrl24-0.com" style={{ color: "var(--accent)" }}>NRL 24-0</a>,{" "}
+        <a href="https://mlb162-0.com" style={{ color: "var(--accent)" }}>MLB 162-0</a>,{" "}
+        <a href="https://footballinvincibles.com" style={{ color: "var(--accent)" }}>Football Invincibles</a> and{" "}
+        <a href="https://f1slam.com" style={{ color: "var(--accent)" }}>F1 Slam</a>.
       </p>
     </div>
   );

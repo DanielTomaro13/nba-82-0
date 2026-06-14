@@ -8,12 +8,14 @@
    and a Monte-Carlo season simulator.
    ========================================================================= */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadMeta, loadPool, loadStrengths } from "@/lib/data";
+import { loadMeta, loadPool, loadPoolYears, loadStrengths } from "@/lib/data";
 import {
-  Mode, MODE_INFO, PoolPlayer, REROLLS, SQUADS, SALARY_CAP, salaryFor,
+  Mode, MODE_INFO, PoolPlayer, REROLLS, SQUADS, SALARY_CAP, salaryFor, effectiveRating,
 } from "@/lib/types";
 import { simulateSeason, verdict } from "@/lib/sim";
-import { POS_LABEL } from "@/lib/format";
+import { POS_LABEL, posBucket } from "@/lib/format";
+
+type PosFilter = "All" | "G" | "F" | "C";
 import { clubColors } from "@/lib/clubs";
 import { submitScore } from "@/lib/leaderboard";
 import { getName, setName, todayKey } from "@/lib/progress";
@@ -27,10 +29,13 @@ const rnd = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 const ORDER: Mode[] = ["quick", "classic", "full17", "cap", "gauntlet", "spoon"];
 
 export default function PerfectSeasonGame() {
-  const [pool, setPool] = useState<PoolPlayer[] | null>(null);
+  const [eraPool, setEraPool] = useState<PoolPlayer[] | null>(null);
+  const [yearPool, setYearPool] = useState<PoolPlayer[] | null>(null);
   const [strengths, setStrengths] = useState<Record<string, number[]>>({});
   const [err, setErr] = useState<string | null>(null);
 
+  const [byYear, setByYear] = useState(false);          // draft by single year vs decade era
+  const [posFilter, setPosFilter] = useState<PosFilter>("All");
   const [mode, setMode] = useState<Mode | null>(null);
   const [squad, setSquad] = useState<(PoolPlayer | null)[]>([]);
   const [reels, setReels] = useState<{ club: string | null; era: string | null }>({ club: null, era: null });
@@ -49,8 +54,8 @@ export default function PerfectSeasonGame() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadPool(), loadMeta(), loadStrengths()])
-      .then(([p, , s]) => { setPool(p); setStrengths(s.bySeason); })
+    Promise.all([loadPool(), loadPoolYears(), loadMeta(), loadStrengths()])
+      .then(([p, py, , s]) => { setEraPool(p); setYearPool(py); setStrengths(s.bySeason); })
       .catch(() => setErr("Couldn't load the player pool. Try refreshing."));
     setMuted(isMuted());
     // Starting Five shortcut: /play?quick=1 jumps straight in and auto-spins.
@@ -60,6 +65,7 @@ export default function PerfectSeasonGame() {
     }
   }, []);
 
+  const pool = byYear ? yearPool : eraPool;
   const slots = mode ? SQUADS[mode] : [];
   const total = slots.length;
   const picksMade = squad.filter(Boolean).length;
@@ -68,30 +74,37 @@ export default function PerfectSeasonGame() {
   const maxReroll = mode ? REROLLS[mode] : { club: 0, era: 0 };
 
   const filled = squad.filter(Boolean) as PoolPlayer[];
-  const avg = filled.length ? filled.reduce((a, b) => a + b.rating, 0) / filled.length : 0;
+  // Bench (INT) players who can play multiple positions get a small boost.
+  const avg = filled.length
+    ? squad.reduce((a, p, i) => (p ? a + effectiveRating(p, slots[i]?.code === "INT") : a), 0) / filled.length
+    : 0;
   const salary = filled.reduce((a, b) => a + salaryFor(b.rating), 0);
 
-  const undrafted = useCallback((p: PoolPlayer) => !squad.some((s) => s && s.id === p.id), [squad]);
+  // Dedupe by player id so the same player can't be drafted twice (matters in
+  // Year mode, where one player has many per-season cards).
+  const undrafted = useCallback((p: PoolPlayer) => !squad.some((s) => s && s.pid === p.pid), [squad]);
+  const matchesFilter = useCallback((p: PoolPlayer) => posFilter === "All" || posBucket(p.pos) === posFilter, [posFilter]);
+  const avail = useCallback((p: PoolPlayer) => undrafted(p) && matchesFilter(p), [undrafted, matchesFilter]);
 
   const candidates = useMemo(() => {
     if (!pool || !reels.club) return [];
     return pool
-      .filter((p) => p.club === reels.club && (!reels.era || p.era === reels.era) && undrafted(p))
+      .filter((p) => p.club === reels.club && (!reels.era || p.era === reels.era) && undrafted(p) && matchesFilter(p))
       .sort((a, b) => (mode === "spoon" ? a.rating - b.rating : b.rating - a.rating));
-  }, [pool, reels, undrafted, mode]);
+  }, [pool, reels, undrafted, matchesFilter, mode]);
 
   const clubsWithPlayers = useCallback(() => {
     if (!pool) return [];
-    return Array.from(new Set(pool.filter(undrafted).map((p) => p.club)));
-  }, [pool, undrafted]);
+    return Array.from(new Set(pool.filter(avail).map((p) => p.club)));
+  }, [pool, avail]);
   const erasForClub = useCallback((club: string) => {
     if (!pool) return [];
-    return Array.from(new Set(pool.filter((p) => p.club === club && undrafted(p)).map((p) => p.era)));
-  }, [pool, undrafted]);
+    return Array.from(new Set(pool.filter((p) => p.club === club && avail(p)).map((p) => p.era)));
+  }, [pool, avail]);
   const clubsForEra = useCallback((era: string | null) => {
     if (!pool || !era) return [];
-    return Array.from(new Set(pool.filter((p) => p.era === era && undrafted(p)).map((p) => p.club)));
-  }, [pool, undrafted]);
+    return Array.from(new Set(pool.filter((p) => p.era === era && avail(p)).map((p) => p.club)));
+  }, [pool, avail]);
 
   const animateTo = useCallback((target: { club: string; era: string | null }, lock: { club?: boolean; era?: boolean } = {}) => {
     if (spinningRef.current) return;
@@ -161,10 +174,23 @@ export default function PerfectSeasonGame() {
   function placeInSlot(p: PoolPlayer, code: string) {
     const slot = slots.findIndex((s, i) => s.code === code && !squad[i]);
     if (slot === -1) return;
-    setSquad((sq) => { const next = sq.slice(); next[slot] = { ...p, pos: code, posName: POS_LABEL[code] || p.posName }; return next; });
+    // INT (bench) slots keep the player's real position; starter slots adopt the code.
+    const isBench = code === "INT";
+    setSquad((sq) => {
+      const next = sq.slice();
+      next[slot] = isBench ? { ...p } : { ...p, pos: code, posName: POS_LABEL[code] || p.posName };
+      return next;
+    });
     setNotice(null);
     setPendingPick(null);
     setReels({ club: null, era: null });
+  }
+
+  /** Remove a drafted player so you can re-slot or re-draft them between spins. */
+  function clearSlot(i: number) {
+    if (spinningRef.current || done) return;
+    setSquad((sq) => { const next = sq.slice(); next[i] = null; return next; });
+    setNotice(null);
   }
 
   function draft(p: PoolPlayer) {
@@ -174,16 +200,21 @@ export default function PerfectSeasonGame() {
       return;
     }
     const elig = p.elig?.length ? p.elig : [p.pos];
-    // distinct eligible positions that still have an open slot
+    const isMulti = elig.length > 1;
     const openCodes = elig.filter((c) => slots.some((s, i) => s.code === c && !squad[i]));
-    if (openCodes.length >= 2) {
-      // genuinely multi-position with a real choice — ask which slot
-      setPendingPick({ player: p, codes: openCodes });
+    const benchOpen = slots.some((s, i) => s.code === "INT" && !squad[i]);
+
+    if (isMulti) {
+      // Versatile player: let them choose a position OR the bench (6th-man boost).
+      const options = [...openCodes, ...(benchOpen ? ["INT"] : [])];
+      if (options.length >= 2) { setPendingPick({ player: p, codes: options }); return; }
+      if (options.length === 1) { placeInSlot(p, options[0]); return; }
+      setNotice(`No open spot for ${p.name} — clear a slot or draft someone else.`);
       return;
     }
+    // Single-position player: straight into their position, else the bench.
     if (openCodes.length === 1) { placeInSlot(p, openCodes[0]); return; }
-    // none of their positions open — drop onto the bench if this mode has one
-    if (slots.some((s, i) => s.code === "INT" && !squad[i])) { placeInSlot(p, "INT"); return; }
+    if (benchOpen) { placeInSlot(p, "INT"); return; }
     setNotice(`${POS_LABEL[p.pos] || "That position"} is full — draft a different player.`);
   }
 
@@ -192,6 +223,7 @@ export default function PerfectSeasonGame() {
     setSquad(SQUADS[m].map(() => null));
     setReels({ club: null, era: null });
     setRerolls({ club: 0, era: 0 });
+    setPosFilter("All");
     setNotice(null);
     setPendingPick(null);
   }
@@ -200,6 +232,7 @@ export default function PerfectSeasonGame() {
     setSquad(SQUADS[mode].map(() => null));
     setReels({ club: null, era: null });
     setRerolls({ club: 0, era: 0 });
+    setPosFilter("All");
     setNotice(null);
     setPendingPick(null);
   }
@@ -229,10 +262,30 @@ export default function PerfectSeasonGame() {
             Perfect <span style={{ color: "var(--accent)" }}>Season</span>
           </h1>
           <p style={{ color: "var(--muted)", maxWidth: 640, marginTop: 6 }}>
-            Spin for a club and era, draft the player, fill your team and chase a flawless 82–0.
+            Spin for a franchise and era, draft the player, fill your team and chase a flawless 82–0.
             Choose your game.
           </p>
         </header>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: ".8rem", color: "var(--muted)" }}>Grade players by</span>
+          <div style={{ display: "inline-flex", border: "1px solid var(--border)", borderRadius: 999, overflow: "hidden" }}>
+            {([["era", "Decade era"], ["year", "Single year"]] as const).map(([k, label]) => {
+              const on = (k === "year") === byYear;
+              return (
+                <button key={k} onClick={() => setByYear(k === "year")}
+                  style={{ border: "none", cursor: "pointer", padding: ".4rem .9rem", fontSize: ".8rem", fontWeight: 700,
+                    background: on ? "var(--accent)" : "transparent", color: on ? "#1a0a06" : "var(--muted)" }}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <span style={{ fontSize: ".74rem", color: "var(--muted)" }}>
+            {byYear ? "Players are rated on that exact season." : "Players are rated across the whole decade."}
+          </span>
+        </div>
+
         <div className="grid-cards">
           {ORDER.map((m) => {
             const info = MODE_INFO[m];
@@ -270,9 +323,22 @@ export default function PerfectSeasonGame() {
               </div>
             </div>
 
+            {/* position filter — limits the spin + candidate list */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: ".66rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".08em", marginRight: 2 }}>Filter</span>
+              {(["All", "G", "F", "C"] as const).map((f) => (
+                <button key={f} onClick={() => setPosFilter(f)} className="chip" disabled={spinning}
+                  style={{ cursor: "pointer", fontWeight: 700,
+                    borderColor: posFilter === f ? "var(--accent)" : "var(--border)",
+                    color: posFilter === f ? "var(--text)" : "var(--muted)" }}>
+                  {f === "All" ? "All" : f === "G" ? "Guards" : f === "F" ? "Forwards" : "Centers"}
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-              <Reel label="Club" value={reels.club} spinning={spinning} big />
-              <Reel label="Era" value={reels.era} spinning={spinning} />
+              <Reel label="Franchise" value={reels.club} spinning={spinning} big />
+              <Reel label={byYear ? "Year" : "Era"} value={reels.era} spinning={spinning} />
             </div>
 
             {(!reels.club || spinning) ? (
@@ -310,7 +376,7 @@ export default function PerfectSeasonGame() {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {pendingPick.codes.map((c) => (
                     <button key={c} className="btn" style={{ minHeight: 38 }} onClick={() => placeInSlot(pendingPick.player, c)}>
-                      {POS_LABEL[c] || c}
+                      {c === "INT" ? "Bench (boost)" : POS_LABEL[c] || c}
                     </button>
                   ))}
                   <button className="btn" style={{ minHeight: 38, color: "var(--muted)" }} onClick={() => setPendingPick(null)}>Cancel</button>
@@ -382,9 +448,12 @@ export default function PerfectSeasonGame() {
           {slots.map((s, i) => {
             const p = squad[i];
             const [c1] = p ? clubColors(p.club) : ["var(--border)"];
+            const isBench = s.code === "INT";
+            const boosted = p ? effectiveRating(p, isBench) : 0;
+            const hasBoost = p ? boosted > p.rating : false;
             return (
               <li key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 2px", borderBottom: "1px solid var(--border)" }}>
-                <span style={{ fontFamily: "var(--font-cond)", fontSize: "1rem", color: "var(--muted)", minWidth: 18, textAlign: "center" }}>{s.n}</span>
+                <span style={{ fontFamily: "var(--font-cond)", fontSize: "1rem", color: "var(--muted)", minWidth: 18, textAlign: "center" }}>{isBench ? "B" : s.n}</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: ".62rem", color: "var(--muted)", minWidth: 22 }}>{s.code}</span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: ".85rem", display: "flex", flexDirection: "column" }}>
                   {p ? (
@@ -392,12 +461,17 @@ export default function PerfectSeasonGame() {
                       <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: c1, flexShrink: 0 }} />
                         {p.name}
+                        {hasBoost && <span title="6th-man versatility boost" style={{ color: "var(--accent-2)", fontSize: ".6rem", fontWeight: 800 }}>▲</span>}
                       </span>
-                      <span style={{ fontSize: ".66rem", color: "var(--muted)" }}>{p.club} · {p.era}</span>
+                      <span style={{ fontSize: ".66rem", color: "var(--muted)" }}>{p.club} · {p.era}{isBench && p.posName ? ` · ${p.posName}` : ""}</span>
                     </>
                   ) : <span style={{ color: "var(--border)" }}>—</span>}
                 </span>
-                <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.1rem", color: p && p.rating >= 90 ? "var(--gold)" : "var(--text)", minWidth: 26, textAlign: "right" }}>{p ? p.rating : ""}</span>
+                <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.1rem", color: p && boosted >= 90 ? "var(--gold)" : "var(--text)", minWidth: 26, textAlign: "right" }}>{p ? boosted : ""}</span>
+                {p && !done && (
+                  <button onClick={() => clearSlot(i)} aria-label={`Remove ${p.name}`} title="Remove"
+                    style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: "1rem", lineHeight: 1, padding: "0 2px" }}>×</button>
+                )}
               </li>
             );
           })}

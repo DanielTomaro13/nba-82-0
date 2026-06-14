@@ -20,7 +20,9 @@ export default function SiteFooter() {
             Part of the 0 Series ·{" "}
             <a href="https://afl23-0.com" style={{ color: "var(--accent)" }}>AFL 23-0</a> ·{" "}
             <a href="https://nrl24-0.com" style={{ color: "var(--accent)" }}>NRL 24-0</a> ·{" "}
-            <a href="https://footballinvincibles.com" style={{ color: "var(--accent)" }}>Football Invincibles</a>
+            <a href="https://mlb162-0.com" style={{ color: "var(--accent)" }}>MLB 162-0</a> ·{" "}
+            <a href="https://footballinvincibles.com" style={{ color: "var(--accent)" }}>Football Invincibles</a> ·{" "}
+            <a href="https://f1slam.com" style={{ color: "var(--accent)" }}>F1 Slam</a>
           </p>
           <a
             href="https://ko-fi.com/danieltomaro"
@@ -42,6 +44,7 @@ export default function SiteFooter() {
           <nav style={{ display: "grid", gap: 6, fontSize: ".85rem" }}>
             <strong style={{ color: "var(--text)" }}>Stats</strong>
             <Link href="/ladder">Standings</Link>
+            <Link href="/playoffs">Playoffs</Link>
             <Link href="/players">Players</Link>
             <Link href="/fixtures">Schedule</Link>
             <Link href="/stats">Leaders</Link>

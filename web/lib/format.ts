@@ -21,6 +21,13 @@ export const POS_GROUP: Record<string, string> = {
   PG: "Guard", SG: "Guard", SF: "Forward", PF: "Forward", C: "Center",
 };
 
+/** Compact position bucket — G (guards), F (forwards), C (centers). */
+export function posBucket(pos: string): "G" | "F" | "C" {
+  if (pos === "PG" || pos === "SG") return "G";
+  if (pos === "C") return "C";
+  return "F";
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)
