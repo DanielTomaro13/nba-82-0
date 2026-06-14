@@ -1,0 +1,9 @@
+{
+  "name": "pipeline",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-data.mjs",
+    "seed": "node seed-data.mjs"
+  }
+}

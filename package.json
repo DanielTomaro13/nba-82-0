@@ -1,0 +1,17 @@
+{
+  "name": "nba-82-0",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build an all-time NBA team across franchises and eras and chase a perfect 82-0 season — plus a vault of basketball mini-games, standings, stats and player profiles.",
+  "workspaces": [
+    "pipeline",
+    "web"
+  ],
+  "scripts": {
+    "data": "npm run build -w pipeline",
+    "seed": "npm run seed -w pipeline",
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "start": "npm run start -w web"
+  }
+}

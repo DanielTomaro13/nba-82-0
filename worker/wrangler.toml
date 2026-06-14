@@ -1,0 +1,7 @@
+name = "nba820-leaderboard"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+kv_namespaces = [
+  { binding = "BOARD", id = "4d4bff37721745caa514bac5884a3403" }
+]
