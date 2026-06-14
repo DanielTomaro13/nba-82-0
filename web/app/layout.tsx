@@ -31,6 +31,8 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Daniel Tomaro" }],
   alternates: { canonical: "/" },
+  // AdSense site verification — Google's crawler looks for this meta tag.
+  other: { "google-adsense-account": "ca-pub-2087141992057731" },
   openGraph: {
     type: "website",
     url: SITE.url,
