@@ -21,6 +21,7 @@
  * results, strengths, playoffs (shot charts come from fetch-shots.mjs).
  */
 import { writeFile, mkdir } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -48,9 +49,17 @@ const TEAM_NAME = {
   OKC: "Oklahoma City Thunder", ORL: "Orlando Magic", PHI: "Philadelphia 76ers", PHX: "Phoenix Suns",
   POR: "Portland Trail Blazers", SAC: "Sacramento Kings", SAS: "San Antonio Spurs", TOR: "Toronto Raptors",
   UTA: "Utah Jazz", WAS: "Washington Wizards",
-  NJN: "New Jersey Nets", SEA: "Seattle SuperSonics", NOH: "New Orleans Hornets", NOK: "New Orleans Hornets",
-  VAN: "Vancouver Grizzlies", CHH: "Charlotte Hornets", WSB: "Washington Wizards", KCK: "Sacramento Kings",
-  SDC: "LA Clippers", SAN: "San Antonio Spurs", BUF: "LA Clippers",
+  // historical abbreviations → continuing franchise (factual relocation lineage)
+  NJN: "Brooklyn Nets", NYN: "Brooklyn Nets", SEA: "Seattle SuperSonics", VAN: "Memphis Grizzlies",
+  NOH: "New Orleans Pelicans", NOK: "New Orleans Pelicans", NOJ: "Utah Jazz", UTH: "Utah Jazz",
+  CHH: "Charlotte Hornets", WSB: "Washington Wizards", BAL: "Washington Wizards", BLT: "Washington Wizards",
+  CAP: "Washington Wizards", CHP: "Washington Wizards", CHZ: "Washington Wizards",
+  KCK: "Sacramento Kings", KCO: "Sacramento Kings", CIN: "Sacramento Kings", ROC: "Sacramento Kings",
+  SDC: "LA Clippers", BUF: "LA Clippers", SAN: "San Antonio Spurs", SDR: "Houston Rockets",
+  MNL: "Los Angeles Lakers", STL: "Atlanta Hawks", MIH: "Atlanta Hawks", TCB: "Atlanta Hawks",
+  FTW: "Detroit Pistons", SYR: "Philadelphia 76ers", PHL: "Philadelphia 76ers",
+  PHW: "Golden State Warriors", SFW: "Golden State Warriors", GOS: "Golden State Warriors",
+  DN: "Denver Nuggets",
 };
 const TEAM_META = {
   "Atlanta Hawks": ["East", "Southeast"], "Boston Celtics": ["East", "Atlantic"], "Brooklyn Nets": ["East", "Atlantic"],
@@ -224,34 +233,32 @@ async function main() {
     } catch (e) { console.log(`  ! ${season} fixtures: ${e.message}`); }
   }
 
-  /* ---- legends: real playerindex career line for players the season feed
-         doesn't cover (mostly retired pre-1996). Per-season cards derived
-         across their real year span from their real career averages. -------- */
-  const realPids = new Set(yearCards.map((c) => c.pid));
-  let added = 0;
-  for (const p of indexRows) {
-    if (realPids.has(p.pid) || p.tf !== "Career") continue;
-    if (p.to >= FROM_END - 1) continue;                 // covered (or partially) by season feed
-    if (p.pts < 11 || (p.to - p.from) < 3 || !p.from) continue; // notable, real career
-    const club = TEAM_NAME[p.team] ? p.team : (Object.values(TEAM_NAME).includes(p.team) ? p.team : null);
-    const team = TEAM_NAME[p.team] || (Object.values(TEAM_NAME).find((t) => t === p.team)) || p.team;
-    if (!team) continue;
-    const { pos, elig } = posFromIndex(p.pos, { reb: p.reb, ast: p.ast });
-    const base = rate(p.pts, p.reb, p.ast, 0, 0, 0) + 4; // +4: pre-3pt-era defensive proxy (no stl/blk in feed)
-    const span = Math.max(1, p.to - p.from);
-    const yrs = [...new Set([0, 1, 2, 3, 4].map((i) => Math.round(p.from + (span * i) / 4)))];
-    for (const y of yrs) {
-      const t = (y - p.from) / span, m = clamp(t <= 0.42 ? 0.88 + 0.12 * (t / 0.42) : 1 - 0.18 * ((t - 0.42) / 0.58), 0.8, 1);
+  /* ---- pre-1996 seasons: real playercareerstats, cached in legends-raw.json
+         by fetch-legends.mjs (the season feed only covers 1996-97 on). Each is
+         a real season on the real team — no synthesis. ------------------------ */
+  let legendRows = {};
+  try { legendRows = JSON.parse(readFileSync(join(__dirname, "legends-raw.json"), "utf8")); }
+  catch { console.log("  ! legends-raw.json missing — run `npm run legends` first"); }
+  let added = 0, legSeasons = 0;
+  for (const L of Object.values(legendRows)) {
+    let any = false;
+    for (const s of L.seasons) {
+      if (s.end > FROM_END - 1) continue;             // 1996-97+ comes from the season feed
+      if (s.teamAbbr === "TOT") continue;             // multi-team total row, not one team
+      const club = TEAM_NAME[s.teamAbbr]; if (!club) continue; // drop defunct, no-lineage teams
+      const { pos, elig } = posFromIndex(L.pos, s);
       yearCards.push({
-        id: `leg-${p.pid}-${y}`, pid: p.pid, name: p.name, club: team, era: seasonStr(y + 1), year: y + 1, decade: decadeOf(y + 1),
-        pos, posName: POS_CODE_LABEL[pos], elig, rating: Math.round(clamp(base * m, 58, 99)), g: 70,
-        pts: r1(p.pts * m), reb: r1(p.reb * m), ast: r1(p.ast * m), stl: 0, blk: 0, fg3: 0,
-        fgPct: 0, fg3Pct: 0, ftPct: 0, mpg: 0, ts: 0, usg: 0, pie: 0, netRtg: 0, rebPct: 0, astPct: 0,
+        id: `leg-${L.pid}-${s.end}`, pid: L.pid, name: L.name, club, era: s.season, year: s.end, decade: decadeOf(s.end),
+        pos, posName: POS_CODE_LABEL[pos], elig, rating: rate(s.pts, s.reb, s.ast, s.stl, s.blk, s.fg3), g: s.gp,
+        pts: s.pts, reb: s.reb, ast: s.ast, stl: s.stl, blk: s.blk, fg3: s.fg3,
+        fgPct: s.fgPct, fg3Pct: s.fg3Pct, ftPct: s.ftPct, mpg: s.mpg,
+        ts: 0, usg: 0, pie: 0, netRtg: 0, rebPct: 0, astPct: 0,
       });
+      legSeasons++; any = true;
     }
-    added++;
+    if (any) added++;
   }
-  console.log(`✓ legends from playerindex: ${added} players (pre-${FROM_END - 1})`);
+  console.log(`✓ legends from playercareerstats: ${added} players, ${legSeasons} real pre-${FROM_END - 1} seasons`);
 
   /* ---- per-player season log (derived) ---------------------------------- */
   const playerSeasons = {};
