@@ -229,3 +229,35 @@ table.stat tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
   gap: 1rem;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
+
+/* selects: native look stripped, consistent across iOS Safari */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: none;
+}
+
+/* ---- touch devices / phones (iOS): comfortable, finger-friendly targets ---- */
+@media (pointer: coarse), (max-width: 700px) {
+  .chip {
+    min-height: 34px;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+  }
+  select {
+    min-height: 44px;
+    padding: 0.55rem 0.7rem;
+  }
+  .nav-link { min-height: 44px; }
+  .sister-link { padding: 6px 11px; }
+}
+
+/* respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

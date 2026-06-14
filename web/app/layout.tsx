@@ -53,6 +53,8 @@ export const metadata: Metadata = {
     title: "NBA 82-0",
     statusBarStyle: "black-translucent",
   },
+  // Stop iOS Safari from auto-linking stat numbers / dates as phone numbers.
+  formatDetection: { telephone: false, date: false, address: false, email: false },
   manifest: "/manifest.webmanifest",
 };
 
@@ -112,13 +114,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={orgLd} />
         <JsonLd data={appLd} />
         <JsonLd data={orgEntityLd} />
-        {/* Google AdSense loader — enables Auto Ads + the manual units above */}
-        <Script
-          id="adsbygoogle-init"
+        {/* Google AdSense loader — literal async <script> so React hoists it into
+            <head>; this is the exact tag AdSense's crawler looks for to verify. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script
           async
           src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CLIENT}`}
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
         {/* Cloudflare Web Analytics — privacy-friendly, no cookies */}
         <Script
