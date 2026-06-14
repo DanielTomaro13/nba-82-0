@@ -7,6 +7,7 @@ export interface LadderRow {
   club: string; conf?: string; div?: string;
   p: number; w: number; l: number; d: number;
   pf: number; pa: number; pts: number; pd: number;
+  home?: string; road?: string; l10?: string; streak?: string; confRec?: string;
 }
 export interface MatchResult { round: number; home: string; away: string; hs: number; as: number; }
 export interface Results {

@@ -49,7 +49,7 @@ export default function LadderView() {
       </div>
       <div className="card scroll-x" style={{ padding: ".4rem .6rem" }}>
         <table className="stat">
-          <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>PF</th><th>PA</th><th>Diff</th></tr></thead>
+          <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>Home</th><th>Road</th><th>L10</th><th>Strk</th><th>Diff</th></tr></thead>
           <tbody>
             {rows.map((t, i) => {
               const [c1] = clubColors(t.club);
@@ -65,7 +65,10 @@ export default function LadderView() {
                   <td style={{ fontWeight: 700 }}>{t.w}</td><td>{t.l}</td>
                   <td style={{ fontFamily: "var(--font-mono)" }}>{pct(t.w, t.l)}</td>
                   <td style={{ color: "var(--muted)" }}>{gb <= 0 ? "—" : gb.toFixed(1)}</td>
-                  <td>{t.pf}</td><td>{t.pa}</td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: ".8rem", whiteSpace: "nowrap" }}>{t.home || "—"}</td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: ".8rem", whiteSpace: "nowrap" }}>{t.road || "—"}</td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: ".8rem", whiteSpace: "nowrap" }}>{t.l10 || "—"}</td>
+                  <td style={{ fontFamily: "var(--font-mono)", fontSize: ".8rem", whiteSpace: "nowrap", color: (t.streak || "").startsWith("W") ? "var(--accent-2)" : (t.streak || "").startsWith("L") ? "var(--danger)" : "var(--muted)" }}>{t.streak || "—"}</td>
                   <td style={{ color: t.pd > 0 ? "var(--accent-2)" : t.pd < 0 ? "var(--danger)" : "var(--muted)" }}>{t.pd > 0 ? "+" : ""}{t.pd}</td>
                 </tr>
               );
