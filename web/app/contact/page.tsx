@@ -59,6 +59,16 @@ export default function ContactPage() {
         </ul>
       </section>
 
+      <section style={{ display: "grid", gap: 8 }}>
+        <h2 style={{ margin: 0 }}>Support the site</h2>
+        <p style={{ color: "var(--muted)", margin: 0 }}>
+          NBA 82-0 is free and always will be. If you&apos;d like to help cover the running costs, you can{" "}
+          <a href="https://ko-fi.com/danieltomaro" target="_blank" rel="noopener" style={{ color: "var(--accent)", fontWeight: 700 }}>
+            buy me a coffee on Ko-fi ☕
+          </a>. Every bit is appreciated.
+        </p>
+      </section>
+
       <p style={{ color: "var(--muted)", fontSize: ".85rem" }}>
         Curious how the ratings and the simulator work? That&apos;s all on the{" "}
         <Link href="/about" style={{ color: "var(--accent)" }}>How it works</Link> page. See also our{" "}
