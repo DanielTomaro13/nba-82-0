@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build-data.mjs",
-    "shots": "node fetch-shots.mjs"
+    "shots": "node fetch-shots.mjs",
+    "legends": "node fetch-legends.mjs"
   }
 }

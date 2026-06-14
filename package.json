@@ -12,6 +12,7 @@
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
     "start": "npm run start -w web",
-    "shots": "npm run shots -w pipeline"
+    "shots": "npm run shots -w pipeline",
+    "legends": "npm run legends -w pipeline"
   }
 }
