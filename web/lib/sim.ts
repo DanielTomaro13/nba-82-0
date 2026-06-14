@@ -1,37 +1,20 @@
 /**
- * Season simulator — the difficulty engine.
+ * Season simulator.
  *
- * A drafted squad no longer maps deterministically to a record. Instead its
- * average rating sets a per-game win probability, and the headline result is a
- * single freshly-rolled 82-game season. Going a perfect 82–0 is deliberately
- * rare: even a maxed-out, all-99 starting five only runs the table ~5% of the
- * time, so a perfect season is a genuine, brag-worthy event rather than the
- * default outcome of drafting good players.
- *
- *   • baseWinRate(avg, mode) — per-game win probability for a squad.
- *   • simulateSeason()       — Monte-Carlo over `runs` seasons for the win
- *     distribution + true 82–0 odds, PLUS one fresh random "headline" season
- *     that is the actual W–L the player gets this attempt.
- *
- * Opponent strengths are sampled from real per-season team records
- * (public/data/strengths.json) for colour and variance.
+ * A drafted team's average rating drives a per-game win chance, and the
+ * headline result is a single freshly-played 82-game season. A perfect 82–0 is
+ * intentionally hard to reach, so it stays a genuine achievement rather than
+ * the default outcome of drafting good players.
  */
 
 export const SEASON_GAMES = 82;
 
-/**
- * Win-rate calibration. The best *draftable* starting five averages ~97.4
- * (Jordan 99, LeBron 98, Magic/Jokić 97, Giannis 96). We anchor the per-game
- * win rate so that lineup sits at ~0.967 — and 0.967^82 ≈ 0.05, so even the
- * single best team a player can assemble only runs the table about 1 attempt in
- * 20. Everything below it falls away fast: a merely "great" 95-avg squad wins
- * ~70 games but essentially never goes perfect.
- */
-const WIN_PIVOT_AVG = 85;     // a 48-win, play-in-level squad
+// Internal tuning for the win-chance curve and the season roll.
+const WIN_PIVOT_AVG = 85;
 const WIN_PIVOT_RATE = 0.55;
-const WIN_SLOPE = 0.0336;     // win-rate gained per rating point
+const WIN_SLOPE = 0.0336;
 const WIN_CAP = 0.975;
-const TANK_FLOOR = 0.035;     // best-case tank → ~5% chance of an 0–82 season
+const TANK_FLOOR = 0.035;
 
 export interface SimResult {
   wins: number;
@@ -48,10 +31,7 @@ const clamp01 = (x: number) => clamp(x, 0, 1);
 /** Per-game win probability for a squad of the given average rating + mode. */
 export function baseWinRate(avg: number, mode?: string): number {
   if (mode === "spoon") {
-    // Tank mode inverts: the *worse* the squad the closer to a winless season.
-    // The realistically-worst achievable starting five (~82 avg) bottoms out at
-    // the tank floor so it goes 0–82 about 5% of the time; anything better
-    // wins too often to ever run the table in reverse.
+    // Tank mode inverts: the worse the team, the closer to a winless season.
     const qLo = clamp01((90 - avg) / 8);
     return clamp(WIN_CAP - (WIN_CAP - TANK_FLOOR) * qLo, TANK_FLOOR, WIN_CAP);
   }

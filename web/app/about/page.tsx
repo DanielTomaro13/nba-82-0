@@ -5,20 +5,20 @@ import JsonLd from "@/components/JsonLd";
 
 const FAQ: [string, string][] = [
   [
-    "How are NBA 82-0 player ratings calculated?",
-    "Every rating is built from real per-game box-score production — points, rebounds, assists, steals and blocks weighted like a game score — then mapped onto a 60–99 scale. Rotation starters sit in the low 80s and only all-time greats reach the high 90s.",
+    "How are NBA 82-0 player ratings worked out?",
+    "Each player carries an all-time rating on a 60–99 scale, drawn from their real career production. Rotation starters land in the low 80s and only the genuine greats reach the high 90s.",
   ],
   [
     "What is a perfect 82-0 season?",
-    "An NBA regular season is 82 games, so 82-0 means winning every single one — something no real team has ever done. In NBA 82-0 it's the ultimate goal, and it's deliberately rare: even the best starting five you can possibly draft only runs the table about 5% of the time.",
+    "An NBA regular season is 82 games, so 82-0 means winning every single one — something no real team has ever done. In NBA 82-0 it's the ultimate goal, and it's meant to be hard: even a stacked lineup will rarely run the table, so a perfect season is a real bragging right.",
   ],
   [
     "Is the data real?",
-    "Yes. Standings, schedules and per-game stats come from real NBA box scores via the public NBA Stats API, refreshed weekly. The all-time legend pool spans every era from the 1980s on.",
+    "Yes. Player stats span every era from the 1980s on, and recent standings and schedules are refreshed through the season.",
   ],
   [
     "How do I win the Perfect Season game?",
-    "Spin for a franchise and era, draft a legend into each position, then your team plays out a full simulated 82-game season. You only 'win' by going a flawless 82-0 — so you'll want the strongest possible lineup and a lot of attempts.",
+    "Spin for a franchise and era, draft a legend into each position, then play out a full season. You only 'win' by going a flawless 82-0 — so you'll want the strongest lineup you can build and a few attempts.",
   ],
   [
     "Is NBA 82-0 free to play?",
@@ -37,16 +37,11 @@ const faqLd = {
 };
 
 export const metadata = pageMeta({
-  title: "How NBA 82-0 works — ratings, data & the simulator",
-  description: "How NBA 82-0 builds player ratings from real NBA box-score production, how the season simulator works, and where the data comes from.",
+  title: "How NBA 82-0 works",
+  description: "What NBA 82-0 is, where the player and team data comes from, and how to chase a perfect 82-0 season.",
   path: "/about",
-  keywords: ["NBA 82-0 ratings", "how NBA ratings work", "NBA player ratings"],
+  keywords: ["NBA 82-0", "about", "NBA team builder game"],
 });
-
-const SCORING: [string, string][] = [
-  ["Point scored", "×1"], ["Rebound", "×1.2"], ["Assist", "×1.5"],
-  ["Steal", "×3"], ["Block", "×3"], ["Three-pointer made", "×0.5"],
-];
 
 export default function AboutPage() {
   const m = serverMeta();
@@ -56,45 +51,36 @@ export default function AboutPage() {
       <header>
         <h1 style={{ fontSize: "2.2rem", margin: 0, textTransform: "uppercase" }}>How it works</h1>
         <p style={{ color: "var(--muted)", marginTop: 6 }}>
-          NBA 82-0 is a basketball take on the perfect-season game. Every rating comes from real box-score production — no made-up numbers.
+          NBA 82-0 is a basketball take on the perfect-season game: build an all-time team across franchises and eras and chase a
+          flawless 82-0 record. It&apos;s free, runs in your browser, and there&apos;s no sign-up.
         </p>
       </header>
 
       <section className="card" style={{ padding: "1.25rem" }}>
         <h2 style={{ marginTop: 0 }}>The data</h2>
         <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-          Player ratings are built from the <strong style={{ color: "var(--text)" }}>public NBA Stats API</strong>{" "}
-          (<code>stats.nba.com</code>) — the same feeds that power nba.com. Per-game box scores for recent seasons back to{" "}
-          <strong style={{ color: "var(--text)" }}>{m.seasons[m.seasons.length - 1]}</strong> are aggregated at build time, and an
-          all-time legend pool spans every era from the 1980s on. Each player is drafted to the franchise and era they defined, so
-          1990s Jordan and 2010s LeBron are their own cards. Standings and the schedule come from real game results.
+          Players, teams and recent standings are grounded in real NBA numbers. The legend pool spans every era from the 1980s on,
+          with recent seasons back to <strong style={{ color: "var(--text)" }}>{m.seasons[m.seasons.length - 1]}</strong> kept current
+          through the season. Each player is drafted to the franchise and era they defined, so 1990s Jordan and 2010s LeBron are their
+          own cards.
         </p>
       </section>
 
       <section className="card" style={{ padding: "1.25rem" }}>
-        <h2 style={{ marginTop: 0 }}>The rating</h2>
+        <h2 style={{ marginTop: 0 }}>The ratings</h2>
         <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-          A player&apos;s rating comes from a <strong style={{ color: "var(--text)" }}>per-game production index</strong> — points,
-          rebounds, assists, steals and blocks weighted like a game score. That index is mapped through a sigmoid into a{" "}
-          <strong style={{ color: "var(--text)" }}>60–99</strong> band, calibrated so a rotation starter sits in the low 80s and only
-          all-time greats reach the high 90s. A starting five averaging the high 90s is what it takes to go 82–0.
+          Every player carries an all-time rating on a <strong style={{ color: "var(--text)" }}>60–99</strong> scale, drawn from their
+          real career production. Rotation starters sit in the low 80s; only the all-time greats reach the high 90s. The better your
+          lineup, the deeper your team runs.
         </p>
-        <div className="scroll-x">
-          <table className="stat" style={{ marginTop: 8 }}>
-            <thead><tr><th>Box-score stat</th><th>Weight</th></tr></thead>
-            <tbody>
-              {SCORING.map(([a, p]) => <tr key={a}><td>{a}</td><td style={{ fontFamily: "var(--font-mono)" }}>{p}</td></tr>)}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       <section className="card" style={{ padding: "1.25rem" }}>
-        <h2 style={{ marginTop: 0 }}>The simulator</h2>
+        <h2 style={{ marginTop: 0 }}>Chasing 82-0</h2>
         <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-          Your team&apos;s average rating sets a deterministic win–loss record (high 90s ≈ 82–0). On top of that, a Monte-Carlo engine
-          plays thousands of 82-game seasons against real per-season team strengths to show your odds of going 82–0, a win distribution,
-          and where you&apos;d rank among real NBA teams.
+          Once your team is drafted it plays out a full season. Going a flawless 82-0 is deliberately tough — even a stacked roster
+          will rarely run the table, which is exactly what makes a perfect season worth bragging about. Re-draft, chase a stronger
+          lineup, and keep trying.
         </p>
         <p style={{ marginBottom: 0 }}>
           <Link href="/play" className="btn btn-primary">Build your team →</Link>

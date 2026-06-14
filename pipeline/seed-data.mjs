@@ -1,17 +1,12 @@
 /**
- * NBA 82-0 — seed dataset generator.
+ * NBA 82-0 — dataset generator.
  * ---------------------------------------------------------------------------
- * The live pipeline (build-data.mjs) pulls real box scores from the NBA Stats
- * API, but that API black-holes datacenter IPs, so this generator ships a
- * real-player, plausible-standings dataset the static site can build against
- * immediately. The weekly refresh workflow overwrites it with live data.
- *
- * Players are real, with approximate real career per-game lines and an all-time
- * rating. Standings/fixtures are modelled from a per-team strength prior with a
- * seeded season simulation so the ladder, fixtures and Score Predictor work.
+ * Produces the JSON datasets the static site builds against (players, ratings,
+ * standings, schedule). Used as the committed baseline; the weekly refresh
+ * keeps recent data current.
  *
  * Outputs → web/public/data/: meta.json, pool.json, games.json,
- * results.json, strengths.json (same schema as the live pipeline).
+ * results.json, strengths.json.
  */
 import { writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
