@@ -65,19 +65,29 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
       </header>
-      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))" }}>
-        {stat("Games", p.apps)}
+      <div style={{ fontSize: ".7rem", textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted)" }}>Per game</div>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill,minmax(96px,1fr))" }}>
         {stat("PPG", p.pts)}
         {stat("RPG", p.reb)}
         {stat("APG", p.ast)}
         {stat("SPG", p.stl)}
         {stat("BPG", p.blk)}
-        {stat("Era", `${p.firstYear}–${p.lastYear}`)}
+        {p.mpg ? stat("MPG", p.mpg) : null}
+      </div>
+      <div style={{ fontSize: ".7rem", textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted)" }}>Shooting &amp; career</div>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill,minmax(96px,1fr))" }}>
+        {p.fgPct ? stat("FG%", `${p.fgPct}`) : null}
+        {p.fg3Pct ? stat("3P%", `${p.fg3Pct}`) : null}
+        {p.ftPct ? stat("FT%", `${p.ftPct}`) : null}
+        {p.fg3 ? stat("3PM", p.fg3) : null}
+        {stat("Games", p.apps)}
+        {stat("Span", `${p.firstYear}–${p.lastYear}`)}
       </div>
       <p style={{ color: "var(--muted)", fontSize: ".88rem", lineHeight: 1.6 }}>
-        {p.name} is rated <strong style={{ color: "var(--text)" }}>{p.rating}</strong> in NBA 82-0 — a number built from {p.apps} games of real
-        NBA box-score data between {p.firstYear} and {p.lastYear}. {" "}
-        <Link href="/play" style={{ color: "var(--accent)" }}>Draft {p.name.split(" ")[0]} into your perfect side →</Link>
+        {p.name} is rated <strong style={{ color: "var(--text)" }}>{p.rating}</strong> in NBA 82-0 — built from {p.apps} games of real
+        NBA box-score data ({p.firstYear}–{p.lastYear}): {p.pts} points, {p.reb} rebounds and {p.ast} assists a game
+        {p.fgPct ? ` on ${p.fgPct}% shooting` : ""}. {" "}
+        <Link href="/play" style={{ color: "var(--accent)" }}>Draft {p.name.split(" ")[0]} into your perfect team →</Link>
       </p>
     </div>
   );

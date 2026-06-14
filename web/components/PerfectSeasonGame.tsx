@@ -16,7 +16,7 @@ import { simulateSeason, verdict } from "@/lib/sim";
 import { POS_LABEL, posBucket } from "@/lib/format";
 
 type PosFilter = "All" | "G" | "F" | "C";
-import { clubColors, clubAbbr } from "@/lib/clubs";
+import { clubColors } from "@/lib/clubs";
 import { submitScore } from "@/lib/leaderboard";
 import { getName, setName, todayKey } from "@/lib/progress";
 import { tick, settle, fanfare, isMuted, toggleMuted } from "@/lib/sound";
@@ -55,8 +55,8 @@ export default function PerfectSeasonGame() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadPool(), loadPoolYears(), loadMeta(), loadStrengths()])
-      .then(([p, py, , s]) => { setEraPool(p); setYearPool(py); setStrengths(s.bySeason); })
+    Promise.all([loadPool(), loadMeta(), loadStrengths()])
+      .then(([p, , s]) => { setEraPool(p); setStrengths(s.bySeason); })
       .catch(() => setErr("Couldn't load the player pool. Try refreshing."));
     setMuted(isMuted());
     // Starting Five shortcut: /play?quick=1 jumps straight in and auto-spins.
@@ -65,6 +65,11 @@ export default function PerfectSeasonGame() {
       start("quick");
     }
   }, []);
+
+  // The per-season pool is large, so only fetch it the first time Year mode is used.
+  useEffect(() => {
+    if (byYear && !yearPool) loadPoolYears().then(setYearPool).catch(() => {});
+  }, [byYear, yearPool]);
 
   const pool = byYear ? yearPool : eraPool;
   const slots = mode ? SQUADS[mode] : [];
@@ -87,26 +92,18 @@ export default function PerfectSeasonGame() {
   const matchesFilter = useCallback((p: PoolPlayer) => posFilter === "All" || posBucket(p.pos) === posFilter, [posFilter]);
   const avail = useCallback((p: PoolPlayer) => undrafted(p) && matchesFilter(p), [undrafted, matchesFilter]);
 
-  // Every spin shows a deep pool: the franchise's all-time roster PLUS everyone
-  // from the spun era. One card per player, ranked by how well they match the
-  // spun franchise+era, then rating. (The curated pool is too thin to gate on a
-  // single franchise-era cell.)
-  const matchScore = useCallback(
-    (p: PoolPlayer) => (p.club === reels.club ? 2 : 0) + (reels.era && p.era === reels.era ? 1 : 0),
-    [reels]
-  );
+  // Strict: a spin shows exactly the players from that franchise in that era
+  // (or that exact season in Year mode). One card per player.
   const candidates = useMemo(() => {
     if (!pool || !reels.club) return [];
-    const all = pool.filter((p) => (p.club === reels.club || (reels.era && p.era === reels.era)) && undrafted(p) && matchesFilter(p));
+    const all = pool.filter((p) => p.club === reels.club && (!reels.era || p.era === reels.era) && undrafted(p) && matchesFilter(p));
     const byPid = new Map<number, PoolPlayer>();
     for (const p of all) {
       const cur = byPid.get(p.pid);
-      if (!cur || matchScore(p) > matchScore(cur) || (matchScore(p) === matchScore(cur) && p.rating > cur.rating)) byPid.set(p.pid, p);
+      if (!cur || p.rating > cur.rating) byPid.set(p.pid, p);
     }
-    return [...byPid.values()].sort((a, b) =>
-      matchScore(b) - matchScore(a) || (mode === "spoon" ? a.rating - b.rating : b.rating - a.rating)
-    );
-  }, [pool, reels, undrafted, matchesFilter, matchScore, mode]);
+    return [...byPid.values()].sort((a, b) => (mode === "spoon" ? a.rating - b.rating : b.rating - a.rating));
+  }, [pool, reels, undrafted, matchesFilter, mode]);
 
   const clubsWithPlayers = useCallback(() => {
     if (!pool) return [];
@@ -407,28 +404,26 @@ export default function PerfectSeasonGame() {
                   <span className="chip" style={{ marginLeft: "auto" }}>{candidates.length} available</span>
                 </div>
                 <div style={{ fontSize: ".68rem", color: "var(--muted)", marginBottom: 10 }}>
-                  All {reels.club} {byYear ? "" : "legends "}plus every {byYear ? "player from" : "player of"} {reels.era}.
+                  {byYear ? `Every ${reels.club} player from ${reels.era}, rated on that season.` : `${reels.club} players from the ${reels.era}.`}
                 </div>
                 {candidates.length === 0 ? (
-                  <p style={{ color: "var(--muted)", fontStyle: "italic" }}>No players left from this draw.</p>
+                  <p style={{ color: "var(--muted)", fontStyle: "italic" }}>No players left from this draw — spin again.</p>
                 ) : (
                   <div className="scroll-x" style={{ maxHeight: 360, overflowY: "auto", display: "grid", gap: 6 }}>
                     {candidates.slice(0, 80).map((p) => {
                       const full = !playerPlaceable(p);
                       const posLabel = p.elig?.length > 1 ? p.elig.join("/") : p.pos;
-                      const isInEra = reels.era === p.era;
                       return (
                         <button key={p.id} onClick={() => draft(p)} disabled={full}
-                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 8, border: `1px solid ${isInEra ? "var(--gold)" : "var(--border)"}`, background: "var(--panel-2)", color: "var(--text)", cursor: full ? "not-allowed" : "pointer", opacity: full ? 0.4 : 1, textAlign: "left", width: "100%" }}>
+                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel-2)", color: "var(--text)", cursor: full ? "not-allowed" : "pointer", opacity: full ? 0.4 : 1, textAlign: "left", width: "100%" }}>
                           <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.4rem", minWidth: 32, textAlign: "center", color: p.rating >= 90 ? "var(--gold)" : "var(--text)" }}>{p.rating}</span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ display: "flex", gap: 7, alignItems: "center", fontWeight: 600, fontSize: ".92rem" }}>
                               {p.name}
                               <span className="chip" style={{ fontSize: ".62rem", padding: "1px 6px", color: "var(--gold)" }}>{posLabel}</span>
-                              <span style={{ fontFamily: "var(--font-mono)", fontSize: ".58rem", color: isInEra ? "var(--gold)" : "var(--muted)" }}>{p.era}{p.club !== reels.club ? ` · ${clubAbbr(p.club)}` : ""}</span>
                             </span>
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: ".68rem", color: "var(--muted)" }}>
-                              {p.pts} PPG · {p.reb} RPG · {p.ast} APG · {p.stl} SPG
+                              {p.pts} PPG · {p.reb} RPG · {p.ast} APG · {p.mpg ? `${p.mpg} MPG` : `${p.stl} SPG`}
                             </span>
                           </span>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: ".62rem", color: "var(--accent)", whiteSpace: "nowrap" }}>

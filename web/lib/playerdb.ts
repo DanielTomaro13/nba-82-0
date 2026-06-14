@@ -22,9 +22,13 @@ export function allPlayers(): ProfilePlayer[] {
   return _all;
 }
 
-/** Players notable enough to deserve a statically-generated profile page. */
+/**
+ * Players notable enough to get a statically pre-rendered profile page. Capped
+ * to the most famous so the static build stays a sensible size (the dataset has
+ * 2,000+ players; we pre-render the top tier and the rest 404 gracefully).
+ */
 export function notablePlayers(): ProfilePlayer[] {
-  return allPlayers().filter((p) => p.apps >= 20);
+  return [...allPlayers()].sort((a, b) => b.fame - a.fame).slice(0, 800);
 }
 
 export function playerById(id: string): ProfilePlayer | null {

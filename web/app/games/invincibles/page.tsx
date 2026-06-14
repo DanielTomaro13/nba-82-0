@@ -1,10 +1,10 @@
 import GameShell from "@/components/games/GameShell";
-import InvinciblesGame from "@/components/games/InvinciblesGame";
+import PerfectSeasonGame from "@/components/PerfectSeasonGame";
 import { pageMeta } from "@/lib/seo";
 
 export const metadata = pageMeta({
-  title: "Invincibles — draft a squad and simulate a season",
-  description: "Spin clubs and seasons, draft a starting side and simulate a full 82-game NBA season thousands of times. Can you go undefeated?",
+  title: "Invincibles — draft a team and chase a perfect season",
+  description: "Spin franchises and eras, draft a team onto the floor and play out a full 82-game NBA season. Can you go undefeated?",
   path: "/games/invincibles",
   keywords: ["NBA squad builder", "NBA season simulator", "invincibles NBA"],
 });
@@ -15,15 +15,15 @@ export default function Page() {
       slug="invincibles"
       title="Invincibles"
       emoji="🏆"
-      intro="Draft a starting side from across NBA history, then simulate a full season thousands of times. See your win distribution, your odds of going 82–0 and how you stack up against real contenders."
+      intro="Draft a team from across NBA history onto the half-court, then play out a full 82-game season. Go undefeated and you're immortal."
       howTo={[
-        "Spin for a random club and season, then draft a player into each position.",
-        "Fill all five positions to build your spine.",
-        "Hit simulate to run thousands of 82-game seasons.",
-        "Chase a perfect record and post it to the Hall of Fame.",
+        "Pick a mode, then spin for a random franchise and era.",
+        "Draft a player into each spot on the floor — versatile players can cover more than one.",
+        "Fill the lineup, then your team plays out a full 82-game season.",
+        "Chase a flawless 82-0 and post it to the Hall of Fame.",
       ]}
     >
-      <InvinciblesGame />
+      <PerfectSeasonGame />
     </GameShell>
   );
 }

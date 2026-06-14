@@ -1,5 +1,5 @@
 import { pageMeta } from "@/lib/seo";
-import { allPlayers } from "@/lib/playerdb";
+import { notablePlayers } from "@/lib/playerdb";
 import PlayersBrowser from "@/components/PlayersBrowser";
 
 export const metadata = pageMeta({
@@ -10,7 +10,7 @@ export const metadata = pageMeta({
 });
 
 export default function PlayersPage() {
-  const players = allPlayers().sort((a, b) => b.fame - a.fame);
+  const players = notablePlayers().slice().sort((a, b) => b.fame - a.fame);
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <header>

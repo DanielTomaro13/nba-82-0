@@ -17,6 +17,10 @@ export interface PoolPlayer {
   stl: number;        // steals per game
   blk: number;        // blocks per game
   fg3: number;        // three-pointers made per game
+  fgPct?: number;     // field-goal %
+  fg3Pct?: number;    // three-point %
+  ftPct?: number;     // free-throw %
+  mpg?: number;       // minutes per game
 }
 
 export interface Meta {

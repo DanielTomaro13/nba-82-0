@@ -22,8 +22,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Refresh data (live, fall back to seed)
-        run: npm run data || npm run seed
+      - name: Refresh data from the live NBA Stats API
+        # If the runner's IP is rate-limited/blocked, keep the committed dataset
+        # rather than overwriting it (the pipeline only writes on full success).
+        run: npm run data || echo "Live refresh failed — keeping the committed dataset."
       - name: Commit refreshed data
         run: |
           git config user.name "github-actions[bot]"
