@@ -20,9 +20,20 @@ export interface MatchResult {
 }
 export interface Results {
   seasons: string[];
+  lineupSeasons?: string[];
   bySeason: Record<string, MatchResult[]>;
   laddersBySeason: Record<string, LadderRow[]>;
 }
+
+/** A single player's line in a game box score. */
+export interface PlayerLine {
+  pid: number; name: string; min: number;
+  pts: number; reb: number; ast: number; stl: number; blk: number; tov: number;
+  fgm: number; fga: number; fg3m: number; fg3a: number; ftm: number; fta: number; pf: number; pm: number;
+}
+export type TeamBoxFull = TeamBox & { players: PlayerLine[] };
+export interface GameBoxEntry { season: string; date: string; home: TeamBoxFull; away: TeamBoxFull }
+export interface GameBoxData { seasons: string[]; games: Record<string, GameBoxEntry> }
 
 export interface Seed { team: string; seed: number; w: number; l: number }
 export interface Series { conf: string; hi: Seed; lo: Seed; winner: string; score: string; loserTeam: string }

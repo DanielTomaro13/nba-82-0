@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { loadResults, type Results, type MatchResult, type TeamBox } from "@/lib/data";
 import { clubColors } from "@/lib/clubs";
 
@@ -22,6 +23,7 @@ export default function FixturesView() {
   useEffect(() => { if (weeks.length) setWeek(String(weeks[weeks.length - 1])); }, [weeks]);
 
   if (!data) return <p style={{ color: "var(--muted)" }}>Loading the schedule…</p>;
+  const hasPage = Boolean(data.lineupSeasons?.includes(season)); // these seasons have full match pages
   const matches = (data.bySeason[season] ?? []).filter((m) => week === "all" || String(m.round || 0) === week);
   const byRound = new Map<number, MatchResult[]>();
   for (const m of matches) { const k = m.round || 0; if (!byRound.has(k)) byRound.set(k, []); byRound.get(k)!.push(m); }
@@ -46,7 +48,7 @@ export default function FixturesView() {
             {rd ? `Week ${rd}` : "Other"}
           </div>
           <div className="grid-cards">
-            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} onOpen={setOpen} />)}
+            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} onOpen={setOpen} linkTo={hasPage && m.id ? `/match/${m.id}` : undefined} />)}
           </div>
         </div>
       ))}
@@ -55,21 +57,25 @@ export default function FixturesView() {
   );
 }
 
-function MatchCard({ m, onOpen }: { m: MatchResult; onOpen: (m: MatchResult) => void }) {
+function MatchCard({ m, onOpen, linkTo }: { m: MatchResult; onOpen: (m: MatchResult) => void; linkTo?: string }) {
   const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
   const homeWin = m.hs > m.as, awayWin = m.as > m.hs;
   const hasBox = Boolean(m.box);
+  const cardStyle: React.CSSProperties = { padding: ".8rem 1rem", display: "grid", gap: 6 };
+  const cta = linkTo ? "Box score & lineups →" : hasBox ? "Box score →" : "";
   const inner = (
     <>
       {m.date && <div style={{ fontSize: ".66rem", color: "var(--muted)", marginBottom: 2 }}>{m.date}</div>}
       <Row color={h1} name={m.home} score={m.hs} win={homeWin} />
       <Row color={a1} name={m.away} score={m.as} win={awayWin} />
-      {hasBox && <div style={{ fontSize: ".64rem", color: "var(--accent)", textAlign: "right", marginTop: 2 }}>Box score →</div>}
+      {cta && <div style={{ fontSize: ".64rem", color: "var(--accent)", textAlign: "right", marginTop: 2 }}>{cta}</div>}
     </>
   );
-  if (!hasBox) return <div className="card" style={{ padding: ".8rem 1rem", display: "grid", gap: 6 }}>{inner}</div>;
+  // full match page (player lineups) takes priority over the team-box modal
+  if (linkTo) return <Link href={linkTo} className="card" style={cardStyle}>{inner}</Link>;
+  if (!hasBox) return <div className="card" style={cardStyle}>{inner}</div>;
   return (
-    <button onClick={() => onOpen(m)} className="card" style={{ padding: ".8rem 1rem", display: "grid", gap: 6, textAlign: "left", cursor: "pointer", border: "1px solid var(--border)", background: "var(--panel)", color: "inherit", font: "inherit" }}>
+    <button onClick={() => onOpen(m)} className="card" style={{ ...cardStyle, textAlign: "left", cursor: "pointer", border: "1px solid var(--border)", background: "var(--panel)", color: "inherit", font: "inherit" }}>
       {inner}
     </button>
   );

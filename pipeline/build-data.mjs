@@ -29,6 +29,9 @@ const HOST = "https://stats.nba.com/stats";
 const RATE_MS = Number(process.env.RATE_MS || 2000);
 const FROM_END = Number(process.env.FROM_SEASON_END || 1997);
 const FIXTURE_SEASONS = Number(process.env.FIXTURE_SEASONS || 4);
+// Seasons that get full per-game player box scores (lineups) → static match
+// pages. Bounded because each season = ~1,225 pre-rendered pages.
+const LINEUP_SEASONS = Number(process.env.LINEUP_SEASONS || 2);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "web", "public", "data");
 
@@ -159,6 +162,7 @@ async function main() {
   /* ---- real per-season cards (Base + Advanced merged) ------------------- */
   const yearCards = [];
   const standingsBySeason = {}, resultsBySeason = {}, seasonsDone = [];
+  const gameBox = {}; const lineupSeasons = [];
   const dashParams = (season, mt) => ({
     College: "", Conference: "", Country: "", DateFrom: "", DateTo: "", Division: "", DraftPick: "", DraftYear: "",
     GameScope: "", GameSegment: "", Height: "", LastNGames: "0", LeagueID: "00", Location: "", MeasureType: mt,
@@ -218,7 +222,10 @@ async function main() {
 
   /* ---- fixtures for recent seasons (with full per-team box scores) ------- */
   const num = (x) => Number(x) || 0;
-  for (const season of seasonsDone.slice(0, FIXTURE_SEASONS)) {
+  const mins = (m) => { const v = String(m ?? "").split(":")[0]; return Number(v) || 0; }; // "34:12" or 34 → 34
+  const fixSeasons = seasonsDone.slice(0, FIXTURE_SEASONS);
+  for (let si = 0; si < fixSeasons.length; si++) {
+    const season = fixSeasons[si];
     try {
       const gl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "T", Counter: "1230", Sorter: "DATE", Direction: "ASC" });
       const byGame = new Map();
@@ -240,6 +247,36 @@ async function main() {
       }
       if (games.length) resultsBySeason[season] = games;
       await sleep(RATE_MS);
+
+      /* per-game player lineups for the most recent seasons → static match pages */
+      if (si < LINEUP_SEASONS) {
+        const pl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "P", Counter: "30000", Sorter: "DATE", Direction: "ASC" });
+        const players = new Map(); // gid -> { home:[], away:[] }
+        for (const r of rows(pl, "LeagueGameLog")) {
+          const gid = r.GAME_ID; const g = byGame.get(gid); if (!g || !g.home || !g.away) continue;
+          const side = r.TEAM_ABBREVIATION === g.home.abbr ? "home" : "away";
+          const e = players.get(gid) || { home: [], away: [] };
+          e[side].push({
+            pid: Number(r.PLAYER_ID), name: r.PLAYER_NAME, min: mins(r.MIN),
+            pts: num(r.PTS), reb: num(r.REB), ast: num(r.AST), stl: num(r.STL), blk: num(r.BLK), tov: num(r.TOV),
+            fgm: num(r.FGM), fga: num(r.FGA), fg3m: num(r.FG3M), fg3a: num(r.FG3A), ftm: num(r.FTM), fta: num(r.FTA),
+            pf: num(r.PF), pm: num(r.PLUS_MINUS),
+          });
+          players.set(gid, e);
+        }
+        let lc = 0;
+        for (const [gid, g] of byGame.entries()) {
+          const ply = players.get(gid); if (!g.home || !g.away || !ply) continue;
+          const byMin = (a, b) => b.min - a.min || b.pts - a.pts;
+          gameBox[gid] = { season, date: g.date,
+            home: { ...g.home, players: ply.home.sort(byMin) },
+            away: { ...g.away, players: ply.away.sort(byMin) } };
+          lc++;
+        }
+        if (lc) lineupSeasons.push(season);
+        console.log(`  ✓ ${season} lineups: ${lc} games with player box scores`);
+        await sleep(RATE_MS);
+      }
     } catch (e) { console.log(`  ! ${season} fixtures: ${e.message}`); }
   }
 
@@ -355,27 +392,17 @@ async function main() {
   }
   const seasons = seasonsDone.filter((s) => laddersBySeason[s]);
   const latestSeason = seasons[0];
-  function buildBracket(season) {
-    const table = laddersBySeason[season]; if (!table) return null;
-    let st = 12345 ^ season.length; const rand = () => { st = (st * 1103515245 + 12345) & 0x7fffffff; return st / 0x7fffffff; };
-    const seedConf = (cf) => table.filter((t) => t.conf === cf).slice(0, 8).map((t, i) => ({ team: t.club, seed: i + 1, w: t.w, l: t.l }));
-    const east = seedConf("East"), west = seedConf("West"); if (east.length < 8 || west.length < 8) return null;
-    const series = (a, b) => { const adv = clamp(0.5 + (b.seed - a.seed) * 0.06, 0.2, 0.8); let aw = 0, bw = 0; while (aw < 4 && bw < 4) (rand() < adv ? aw++ : bw++); const w = aw === 4 ? a : b, l = aw === 4 ? b : a; return { hi: a, lo: b, winner: w.team, loserTeam: l.team, score: `${Math.max(aw, bw)}-${Math.min(aw, bw)}` }; };
-    const r1f = (sd, cf) => [[0, 7], [3, 4], [2, 5], [1, 6]].map(([h, l]) => ({ conf: cf, ...series(sd[h], sd[l]) }));
-    const nx = (sers, cf) => { const w = sers.map((s) => (s.winner === s.hi.team ? s.hi : s.lo)); const o = []; for (let i = 0; i < w.length; i += 2) o.push({ conf: cf, ...series(w[i], w[i + 1]) }); return o; };
-    const r1e = r1f(east, "East"), r1w = r1f(west, "West"); const se = nx(r1e, "East"), sw = nx(r1w, "West"); const ce = nx(se, "East"), cw = nx(sw, "West");
-    const ec = ce[0].winner === ce[0].hi.team ? ce[0].hi : ce[0].lo, wc = cw[0].winner === cw[0].hi.team ? cw[0].hi : cw[0].lo; const fin = series(ec, wc);
-    return { season, active: playoffsActive, champion: fin.winner, seeds: { East: east, West: west },
-      rounds: [{ name: "First Round", series: [...r1e, ...r1w] }, { name: "Conference Semifinals", series: [...se, ...sw] }, { name: "Conference Finals", series: [...ce, ...cw] }, { name: "NBA Finals", series: [{ conf: "Finals", ...fin }] }] };
-  }
-  const playoffs = buildBracket(latestSeason) || { season: latestSeason, active: false, champion: "", rounds: [], seeds: {} };
+  // NOTE: playoffs.json / playoffsBySeason.json are produced by
+  // pipeline/fetch-playoffs.mjs from the real playoff game logs — this script
+  // deliberately does NOT write them, so a committed real bracket is never
+  // clobbered by a placeholder. Run `npm run playoffs` after this.
 
   /* ---- write ------------------------------------------------------------ */
   await mkdir(OUT_DIR, { recursive: true });
   const clubsBySeason = {}; for (const s of seasons) clubsBySeason[s] = (laddersBySeason[s] || []).map((t) => t.club);
   const allClubs = [...new Set(pool.map((p) => p.club))].sort();
   const divisions = {}; for (const [t, [conf, div]] of Object.entries(TEAM_META)) { (divisions[conf] ||= {}); (divisions[conf][div] ||= []).push(t); }
-  const meta = { generatedAt: new Date().toISOString(), seasons, latestSeason, clubs: allClubs, clubsBySeason, teamMeta: Object.fromEntries(Object.entries(TEAM_META).map(([k, v]) => [k, { conf: v[0], div: v[1] }])), divisions, playoffsActive };
+  const meta = { generatedAt: new Date().toISOString(), seasons, latestSeason, clubs: allClubs, clubsBySeason, teamMeta: Object.fromEntries(Object.entries(TEAM_META).map(([k, v]) => [k, { conf: v[0], div: v[1] }])), divisions, playoffsActive, lineupSeasons };
 
   await Promise.all([
     writeFile(join(OUT_DIR, "meta.json"), JSON.stringify(meta)),
@@ -383,11 +410,11 @@ async function main() {
     writeFile(join(OUT_DIR, "poolYears.json"), JSON.stringify(poolYears)),
     writeFile(join(OUT_DIR, "games.json"), JSON.stringify({ season: latestSeason, players: gamePlayers, strengthsBySeason })),
     writeFile(join(OUT_DIR, "playerSeasons.json"), JSON.stringify(playerSeasons)),
-    writeFile(join(OUT_DIR, "results.json"), JSON.stringify({ seasons, bySeason: resultsBySeason, laddersBySeason })),
+    writeFile(join(OUT_DIR, "results.json"), JSON.stringify({ seasons, lineupSeasons, bySeason: resultsBySeason, laddersBySeason })),
     writeFile(join(OUT_DIR, "strengths.json"), JSON.stringify({ bySeason: strengthsBySeason })),
-    writeFile(join(OUT_DIR, "playoffs.json"), JSON.stringify(playoffs)),
     writeFile(join(OUT_DIR, "seasonLeaders.json"), JSON.stringify({ cats: leaderCats, bySeason: seasonLeaders })),
+    writeFile(join(OUT_DIR, "gameBox.json"), JSON.stringify({ seasons: lineupSeasons, games: gameBox })),
   ]);
-  console.log(`✓ ${pool.length} era cards, ${poolYears.length} year cards, ${gamePlayers.length} players, ${seasons.length} seasons in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+  console.log(`✓ ${pool.length} era cards, ${poolYears.length} year cards, ${gamePlayers.length} players, ${seasons.length} seasons, ${Object.keys(gameBox).length} match box scores in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 }
 main().catch((e) => { console.error("✗ pipeline failed:", e); process.exit(1); });

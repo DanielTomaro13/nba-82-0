@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/seo";
 import { notablePlayers } from "@/lib/playerdb";
 import { allTeams } from "@/lib/teamdb";
+import { allMatchIds } from "@/lib/matchdb";
 
 export const dynamic = "force-static";
 
@@ -46,5 +47,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly",
     lastModified: now,
   }));
-  return [...top, ...teams, ...games, ...players];
+  const matches: MetadataRoute.Sitemap = allMatchIds().map((id) => ({
+    url: `${SITE.url}/match/${id}/`,
+    priority: 0.4,
+    changeFrequency: "monthly",
+    lastModified: now,
+  }));
+  return [...top, ...teams, ...games, ...players, ...matches];
 }

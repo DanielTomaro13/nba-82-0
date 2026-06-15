@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { pageMeta, breadcrumbJsonLd, SITE } from "@/lib/seo";
 import { allTeams, teamByAbbr, teamRoster, teamLeaders, teamRecords, teamTitles } from "@/lib/teamdb";
+import { recentMatchesForTeam } from "@/lib/matchdb";
 import { clubColors } from "@/lib/clubs";
 import JsonLd from "@/components/JsonLd";
 import AdUnit from "@/components/AdUnit";
@@ -49,6 +50,7 @@ export default async function TeamPage({ params }: { params: Promise<{ abbr: str
   const leaders = teamLeaders(t.club);
   const records = teamRecords(t.club);
   const titles = teamTitles(t.club);
+  const recent = recentMatchesForTeam(t.abbr, 8);
   const top = (key: "pts" | "reb" | "ast", min = 100) =>
     [...leaders].filter((p) => p.apps >= min).sort((a, b) => (b[key] || 0) - (a[key] || 0)).map((p) => ({ id: p.id, name: p.name, slug: p.slug, v: p[key] || 0 }));
 
@@ -85,6 +87,29 @@ export default async function TeamPage({ params }: { params: Promise<{ abbr: str
         {leadBoard("Rebounds / game", top("reb"))}
         {leadBoard("Assists / game", top("ast"))}
       </div>
+
+      {recent.length > 0 && <>
+        <h2 style={{ margin: 0, fontSize: "1.2rem" }}>Recent games <span style={{ fontSize: ".8rem", color: "var(--muted)", fontWeight: 400 }}>(tap for box score)</span></h2>
+        <div className="grid-cards">
+          {recent.map((g) => {
+            const isHome = g.home.abbr === t.abbr;
+            const us = isHome ? g.home : g.away, them = isHome ? g.away : g.home;
+            const win = us.pts > them.pts;
+            const [oc] = clubColors(them.name);
+            return (
+              <Link key={g.id} href={`/match/${g.id}`} className="card" style={{ padding: ".7rem .9rem", display: "grid", gap: 3 }}>
+                <span style={{ fontSize: ".64rem", color: "var(--muted)" }}>{g.date} · {isHome ? "vs" : "@"}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: oc }} />
+                  <span style={{ flex: 1, fontSize: ".86rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{them.name}</span>
+                  <span style={{ fontFamily: "var(--font-cond)", fontSize: ".9rem", color: win ? "var(--gold)" : "var(--muted)", fontWeight: 700 }}>{win ? "W" : "L"}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: ".8rem" }}>{us.pts}–{them.pts}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </>}
 
       <AdUnit slot={AD_SLOTS.result} />
 
