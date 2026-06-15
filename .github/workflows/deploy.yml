@@ -30,6 +30,7 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: https://nba82-0.com
           NEXT_PUBLIC_LEADERBOARD_URL: ${{ vars.LEADERBOARD_URL }}
+          NEXT_PUBLIC_DATA_VERSION: ${{ github.sha }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

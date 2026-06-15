@@ -30,10 +30,6 @@ function Node({ code, p, onRemove, done }: { code: string; p: PoolPlayer | null;
         >
           {p ? rating : code}
         </div>
-        {p && !done && onRemove && (
-          <button onClick={onRemove} aria-label={`Remove ${p.name}`} title="Remove"
-            style={{ position: "absolute", top: -6, right: -8, width: 18, height: 18, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--panel)", color: "var(--muted)", fontSize: ".7rem", lineHeight: 1, cursor: "pointer", display: "grid", placeItems: "center", padding: 0 }}>×</button>
-        )}
       </div>
       {p && (
         <div style={{ fontSize: ".6rem", color: "var(--text)", marginTop: 2, lineHeight: 1.1, fontWeight: 600, textShadow: "0 1px 3px #000" }}>
@@ -93,15 +89,14 @@ export default function CourtView({ slots, squad, onRemove, done }: {
               const r = p ? effectiveRating(p, true) : 0;
               const boost = p ? r > p.rating : false;
               return (
-                <button key={i} onClick={p && !done ? () => onRemove(i) : undefined} disabled={!p || done}
-                  title={p ? `${p.name} — tap to remove` : "Bench"}
+                <span key={i} title={p ? p.name : "Bench"}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 9px", borderRadius: 999,
                     border: `1px solid ${p ? c1 : "var(--border)"}`, background: p ? "var(--panel-2)" : "transparent",
-                    color: "var(--text)", cursor: p && !done ? "pointer" : "default", fontSize: ".74rem" }}>
+                    color: "var(--text)", fontSize: ".74rem" }}>
                   <span style={{ fontFamily: "var(--font-cond)", color: r >= 90 ? "var(--gold)" : "var(--text)" }}>{p ? r : "—"}</span>
                   {p ? p.name.split(" ").slice(-1)[0] : "Bench"}
                   {boost && <span style={{ color: "var(--accent-2)", fontSize: ".6rem" }}>▲</span>}
-                </button>
+                </span>
               );
             })}
           </div>

@@ -216,18 +216,28 @@ async function main() {
     console.log(`✓ ${season}: ${n} players${adv ? " (+advanced)" : ""}`);
   }
 
-  /* ---- fixtures for recent seasons -------------------------------------- */
+  /* ---- fixtures for recent seasons (with full per-team box scores) ------- */
+  const num = (x) => Number(x) || 0;
   for (const season of seasonsDone.slice(0, FIXTURE_SEASONS)) {
     try {
-      const gl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "T", Counter: "1000", Sorter: "DATE", Direction: "ASC" });
+      const gl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "T", Counter: "1230", Sorter: "DATE", Direction: "ASC" });
       const byGame = new Map();
       for (const r of rows(gl, "LeagueGameLog")) {
-        const e = byGame.get(r.GAME_ID) || {}; const home = !String(r.MATCHUP || "").includes("@");
-        e[home ? "home" : "away"] = { name: TEAM_NAME[r.TEAM_ABBREVIATION] || r.TEAM_ABBREVIATION, pts: Number(r.PTS) || 0, date: r.GAME_DATE };
+        const e = byGame.get(r.GAME_ID) || { date: r.GAME_DATE }; const home = !String(r.MATCHUP || "").includes("@");
+        e[home ? "home" : "away"] = {
+          name: TEAM_NAME[r.TEAM_ABBREVIATION] || r.TEAM_ABBREVIATION, abbr: r.TEAM_ABBREVIATION,
+          pts: num(r.PTS), fgm: num(r.FGM), fga: num(r.FGA), fg3m: num(r.FG3M), fg3a: num(r.FG3A),
+          ftm: num(r.FTM), fta: num(r.FTA), oreb: num(r.OREB), dreb: num(r.DREB), reb: num(r.REB),
+          ast: num(r.AST), stl: num(r.STL), blk: num(r.BLK), tov: num(r.TOV), pf: num(r.PF),
+        };
         byGame.set(r.GAME_ID, e);
       }
       const games = []; let gi = 0;
-      for (const g of byGame.values()) { if (!g.home || !g.away) continue; games.push({ round: Math.floor(gi / 40) + 1, home: g.home.name, away: g.away.name, hs: g.home.pts, as: g.away.pts }); gi++; }
+      for (const [gid, g] of byGame.entries()) {
+        if (!g.home || !g.away) continue;
+        games.push({ id: gid, date: g.date, round: Math.floor(gi / 40) + 1, home: g.home.name, away: g.away.name, hs: g.home.pts, as: g.away.pts, box: { home: g.home, away: g.away } });
+        gi++;
+      }
       if (games.length) resultsBySeason[season] = games;
       await sleep(RATE_MS);
     } catch (e) { console.log(`  ! ${season} fixtures: ${e.message}`); }
@@ -314,6 +324,29 @@ async function main() {
   }
   gamePlayers.sort((a, b) => b.fame - a.fame);
 
+  /* ---- per-season statistical leaders (derived from real year cards) ----- */
+  // Only rank players with a credible sample so per-game rates aren't noise.
+  const LEAD_CATS = [
+    { key: "pts", label: "Points", min: 30 }, { key: "reb", label: "Rebounds", min: 30 },
+    { key: "ast", label: "Assists", min: 30 }, { key: "stl", label: "Steals", min: 30 },
+    { key: "blk", label: "Blocks", min: 30 }, { key: "fg3", label: "Threes", min: 30 },
+    { key: "ts", label: "True Shooting %", min: 40 }, { key: "pie", label: "Player Impact", min: 40 },
+  ];
+  const cardsBySeasonForLeaders = {};
+  for (const c of yearCards) (cardsBySeasonForLeaders[c.era] ||= []).push(c);
+  const seasonLeaders = {};
+  for (const [season, cards] of Object.entries(cardsBySeasonForLeaders)) {
+    const cats = {};
+    for (const cat of LEAD_CATS) {
+      const ranked = cards.filter((c) => (c.g || 0) >= cat.min && (c[cat.key] || 0) > 0)
+        .sort((a, b) => (b[cat.key] || 0) - (a[cat.key] || 0)).slice(0, 15)
+        .map((c) => ({ pid: c.pid, name: c.name, club: c.club, value: c[cat.key] }));
+      if (ranked.length) cats[cat.key] = ranked;
+    }
+    if (Object.keys(cats).length) seasonLeaders[season] = cats;
+  }
+  const leaderCats = LEAD_CATS.map((c) => ({ key: c.key, label: c.label }));
+
   /* ---- ladders, strengths, playoffs ------------------------------------- */
   const laddersBySeason = {}, strengthsBySeason = {};
   for (const [s, table] of Object.entries(standingsBySeason)) {
@@ -353,6 +386,7 @@ async function main() {
     writeFile(join(OUT_DIR, "results.json"), JSON.stringify({ seasons, bySeason: resultsBySeason, laddersBySeason })),
     writeFile(join(OUT_DIR, "strengths.json"), JSON.stringify({ bySeason: strengthsBySeason })),
     writeFile(join(OUT_DIR, "playoffs.json"), JSON.stringify(playoffs)),
+    writeFile(join(OUT_DIR, "seasonLeaders.json"), JSON.stringify({ cats: leaderCats, bySeason: seasonLeaders })),
   ]);
   console.log(`✓ ${pool.length} era cards, ${poolYears.length} year cards, ${gamePlayers.length} players, ${seasons.length} seasons in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 }

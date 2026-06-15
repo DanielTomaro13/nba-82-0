@@ -19,16 +19,37 @@ let _meta: Meta | null = null;
 let _pool: PoolPlayer[] | null = null;
 let _games: GamePlayer[] | null = null;
 let _results: ResultsData | null = null;
-let _po: Record<string, { champion: string; runnerUp?: string }> | null = null;
+interface BracketSeries { conf: string; hi: { team: string }; lo: { team: string }; winner: string; loserTeam: string; score: string }
+interface Bracket { champion: string; runnerUp?: string; rounds: { name: string; series: BracketSeries[] }[] }
+let _po: Record<string, Bracket> | null = null;
 
 const meta = (): Meta => (_meta ??= read<Meta>("meta.json"));
 const pool = (): PoolPlayer[] => (_pool ??= read<PoolPlayer[]>("pool.json"));
 const games = (): GamePlayer[] => (_games ??= read<{ players: GamePlayer[] }>("games.json").players);
 const results = (): ResultsData => (_results ??= read<ResultsData>("results.json"));
-const playoffs = (): Record<string, { champion: string; runnerUp?: string }> => {
-  if (!_po) { try { _po = read<Record<string, { champion: string; runnerUp?: string }>>("playoffsBySeason.json"); } catch { _po = {}; } }
+const playoffs = (): Record<string, Bracket> => {
+  if (!_po) { try { _po = read<Record<string, Bracket>>("playoffsBySeason.json"); } catch { _po = {}; } }
   return _po ?? {};
 };
+
+/** Deepest round a team reached, as a human label — derived from the real bracket. */
+function playoffResult(b: Bracket | undefined, club: string): string {
+  if (!b || !b.rounds?.length) return "";
+  if (b.champion === club) return "Champions";
+  if (b.runnerUp === club) return "Runner-up";
+  // find the deepest round the club appears in as a participant
+  let deepest = -1;
+  b.rounds.forEach((rd, i) => {
+    if (rd.series.some((s) => s.hi.team === club || s.lo.team === club)) deepest = i;
+  });
+  if (deepest < 0) return "Missed playoffs";
+  const name = b.rounds[deepest].name;
+  // they lost in this round (champion/runner-up handled above)
+  if (name === "Conference Finals") return "Conf Finals";
+  if (name === "Conference Semifinals") return "Conf Semis";
+  if (name === "First Round") return "First Round";
+  return name;
+}
 
 export interface Team { club: string; abbr: string; conf: string; div: string }
 
@@ -59,7 +80,7 @@ export function teamLeaders(club: string): (GamePlayer & { slug: string })[] {
 
 /** Per-season record for the franchise (newest first). */
 export function teamRecords(club: string) {
-  const out: { season: string; w: number; l: number; pf: number; pa: number; rank: number; champ: boolean; finals: boolean }[] = [];
+  const out: { season: string; w: number; l: number; pf: number; pa: number; rank: number; champ: boolean; finals: boolean; result: string }[] = [];
   const po = playoffs();
   for (const season of results().seasons) {
     const table = results().laddersBySeason[season] || [];
@@ -68,7 +89,7 @@ export function teamRecords(club: string) {
     const conf = table.filter((t) => t.conf === row.conf).sort((a, b) => b.w - a.w);
     const rank = conf.findIndex((t) => t.club === club) + 1;
     const b = po[season];
-    out.push({ season, w: row.w, l: row.l, pf: row.pf, pa: row.pa, rank, champ: b?.champion === club, finals: b?.champion === club || b?.runnerUp === club });
+    out.push({ season, w: row.w, l: row.l, pf: row.pf, pa: row.pa, rank, champ: b?.champion === club, finals: b?.champion === club || b?.runnerUp === club, result: playoffResult(b, club) });
   }
   return out;
 }

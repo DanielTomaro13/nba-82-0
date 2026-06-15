@@ -2,12 +2,13 @@ import Link from "next/link";
 import { pageMeta } from "@/lib/seo";
 import { allPlayers, type ProfilePlayer } from "@/lib/playerdb";
 import { clubColors } from "@/lib/clubs";
+import SeasonLeaders from "@/components/SeasonLeaders";
 
 export const metadata = pageMeta({
   title: "NBA Stat Leaders — points, rebounds, assists & more",
-  description: "Career per-game leaders across the dataset: points, rebounds, assists, steals, blocks, games and the top-rated players. Built from real NBA box-score data.",
+  description: "Per-season and career per-game leaders across the dataset: points, rebounds, assists, steals, blocks, threes, true shooting and more. Built from real NBA box-score data.",
   path: "/stats",
-  keywords: ["NBA stats", "NBA scoring leaders", "NBA stat leaders", "most NBA points"],
+  keywords: ["NBA stats", "NBA scoring leaders", "NBA stat leaders", "most NBA points", "NBA season leaders"],
 });
 
 const BOARDS: { key: keyof ProfilePlayer; label: string; fmt?: (n: number) => string }[] = [
@@ -25,8 +26,15 @@ export default function StatsPage() {
     <div style={{ display: "grid", gap: "1.5rem" }}>
       <header>
         <h1 style={{ fontSize: "2rem", margin: 0, textTransform: "uppercase" }}>Stat Leaders</h1>
-        <p style={{ color: "var(--muted)", marginTop: 6 }}>Career leaders across the dataset, from real NBA match stats.</p>
+        <p style={{ color: "var(--muted)", marginTop: 6 }}>Per-season and career leaders, from real NBA match stats.</p>
       </header>
+
+      <section style={{ display: "grid", gap: 12 }}>
+        <h2 style={{ margin: 0, fontSize: "1.2rem" }}>Single-season leaders</h2>
+        <SeasonLeaders />
+      </section>
+
+      <h2 style={{ margin: "0.5rem 0 0", fontSize: "1.2rem" }}>Career leaders</h2>
       <div className="grid-cards" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
         {BOARDS.map((b) => {
           const top = [...players].sort((a, b2) => (b2[b.key] as number) - (a[b.key] as number)).slice(0, 10);

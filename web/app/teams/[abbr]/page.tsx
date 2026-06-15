@@ -111,8 +111,8 @@ export default async function TeamPage({ params }: { params: Promise<{ abbr: str
                 <tr key={r.season}>
                   <td style={{ whiteSpace: "nowrap" }}>{r.season}</td><td style={{ fontWeight: 700 }}>{r.w}</td><td>{r.l}</td>
                   <td style={{ fontFamily: "var(--font-mono)" }}>{(r.w + r.l ? r.w / (r.w + r.l) : 0).toFixed(3).replace(/^0/, "")}</td>
-                  <td>{r.rank > 0 ? `#${r.rank} ${r.season ? "" : ""}` : "—"}</td><td>{r.pf}</td><td>{r.pa}</td>
-                  <td style={{ whiteSpace: "nowrap", color: r.champ ? "var(--gold)" : r.finals ? "var(--accent-2)" : "var(--muted)" }}>{r.champ ? "🏆 Champions" : r.finals ? "Finals" : "—"}</td>
+                  <td>{r.rank > 0 ? `#${r.rank}` : "—"}</td><td>{r.pf}</td><td>{r.pa}</td>
+                  <td style={{ whiteSpace: "nowrap", color: r.champ ? "var(--gold)" : r.finals ? "var(--accent-2)" : "var(--muted)" }}>{r.champ ? "🏆 Champions" : (r.result || "—")}</td>
                 </tr>
               ))}
             </tbody>

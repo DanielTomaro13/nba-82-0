@@ -37,6 +37,17 @@ export default function Home() {
         </div>
       </section>
 
+      {/* today's daily puzzles */}
+      <section className="card" style={{ padding: "1rem 1.1rem", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", borderColor: "var(--accent)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginRight: "auto" }}>
+          <span style={{ fontSize: ".68rem", textTransform: "uppercase", letterSpacing: ".08em", color: "var(--gold)" }}>New every day</span>
+          <strong style={{ fontFamily: "var(--font-cond)", fontSize: "1.2rem", textTransform: "uppercase" }}>Today's puzzles</strong>
+        </div>
+        <Link href="/games/footle" className="btn">🟧 Hoople</Link>
+        <Link href="/games/guess-the-player" className="btn">🕵️ Guess the Player</Link>
+        <Link href="/games/score-predictor" className="btn">🔮 Score Predictor</Link>
+      </section>
+
       {/* games grid */}
       <section>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>

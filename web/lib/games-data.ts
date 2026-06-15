@@ -58,10 +58,11 @@ export interface GamesData {
   strengthsBySeason: Record<string, number[]>;
 }
 
+const VER = process.env.NEXT_PUBLIC_DATA_VERSION ? `?v=${process.env.NEXT_PUBLIC_DATA_VERSION}` : "";
 let _cache: GamesData | null = null;
 export async function loadGamesData(): Promise<GamesData> {
   if (_cache) return _cache;
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/games.json`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/games.json${VER}`, {
     cache: "force-cache",
   });
   _cache = await res.json();

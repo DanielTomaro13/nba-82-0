@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { loadResults, type Results, type MatchResult } from "@/lib/data";
+import { loadResults, type Results, type MatchResult, type TeamBox } from "@/lib/data";
 import { clubColors } from "@/lib/clubs";
 
 const sel: React.CSSProperties = { padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" };
@@ -9,6 +9,7 @@ export default function FixturesView() {
   const [data, setData] = useState<Results | null>(null);
   const [season, setSeason] = useState("");
   const [week, setWeek] = useState<string>("");
+  const [open, setOpen] = useState<MatchResult | null>(null);
   useEffect(() => { loadResults().then((r) => { setData(r); setSeason(r.seasons[0]); }); }, []);
 
   const weeks = useMemo(() => {
@@ -45,21 +46,76 @@ export default function FixturesView() {
             {rd ? `Week ${rd}` : "Other"}
           </div>
           <div className="grid-cards">
-            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} />)}
+            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} onOpen={setOpen} />)}
           </div>
         </div>
       ))}
+      {open && <BoxScoreModal m={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-function MatchCard({ m }: { m: MatchResult }) {
+function MatchCard({ m, onOpen }: { m: MatchResult; onOpen: (m: MatchResult) => void }) {
   const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
   const homeWin = m.hs > m.as, awayWin = m.as > m.hs;
-  return (
-    <div className="card" style={{ padding: ".8rem 1rem", display: "grid", gap: 6 }}>
+  const hasBox = Boolean(m.box);
+  const inner = (
+    <>
+      {m.date && <div style={{ fontSize: ".66rem", color: "var(--muted)", marginBottom: 2 }}>{m.date}</div>}
       <Row color={h1} name={m.home} score={m.hs} win={homeWin} />
       <Row color={a1} name={m.away} score={m.as} win={awayWin} />
+      {hasBox && <div style={{ fontSize: ".64rem", color: "var(--accent)", textAlign: "right", marginTop: 2 }}>Box score →</div>}
+    </>
+  );
+  if (!hasBox) return <div className="card" style={{ padding: ".8rem 1rem", display: "grid", gap: 6 }}>{inner}</div>;
+  return (
+    <button onClick={() => onOpen(m)} className="card" style={{ padding: ".8rem 1rem", display: "grid", gap: 6, textAlign: "left", cursor: "pointer", border: "1px solid var(--border)", background: "var(--panel)", color: "inherit", font: "inherit" }}>
+      {inner}
+    </button>
+  );
+}
+
+const STAT_ROWS: { key: keyof TeamBox; label: string; att?: keyof TeamBox }[] = [
+  { key: "pts", label: "Points" },
+  { key: "fgm", label: "Field goals", att: "fga" },
+  { key: "fg3m", label: "Three-pointers", att: "fg3a" },
+  { key: "ftm", label: "Free throws", att: "fta" },
+  { key: "reb", label: "Rebounds" }, { key: "oreb", label: "Off rebounds" }, { key: "ast", label: "Assists" },
+  { key: "stl", label: "Steals" }, { key: "blk", label: "Blocks" }, { key: "tov", label: "Turnovers" }, { key: "pf", label: "Fouls" },
+];
+const cell = (b: TeamBox, r: { key: keyof TeamBox; att?: keyof TeamBox }) => {
+  if (r.att) { const m = b[r.key] as number, a = b[r.att] as number; return a ? `${m}/${a} · ${((m / a) * 100).toFixed(0)}%` : "—"; }
+  return b[r.key] as number;
+};
+
+function BoxScoreModal({ m, onClose }: { m: MatchResult; onClose: () => void }) {
+  const b = m.box!; const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.66)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ padding: "1.1rem", maxWidth: 460, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <strong style={{ fontSize: ".82rem", color: "var(--muted)" }}>{m.date || "Final"}</strong>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "1.3rem", cursor: "pointer", lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 6, alignItems: "center", marginBottom: 12 }}>
+          <span style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: m.hs > m.as ? 700 : 400 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: h1 }} />{m.home}</span>
+          <span style={{ gridColumn: "2 / 4", fontFamily: "var(--font-cond)", fontSize: "1.5rem", textAlign: "right" }}>{m.hs}</span>
+          <span style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: m.as > m.hs ? 700 : 400 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: a1 }} />{m.away}</span>
+          <span style={{ gridColumn: "2 / 4", fontFamily: "var(--font-cond)", fontSize: "1.5rem", textAlign: "right" }}>{m.as}</span>
+        </div>
+        <table className="stat" style={{ width: "100%" }}>
+          <thead><tr><th style={{ textAlign: "left" }}>Stat</th><th>{b.home.abbr || "Home"}</th><th>{b.away.abbr || "Away"}</th></tr></thead>
+          <tbody>
+            {STAT_ROWS.map((r) => (
+              <tr key={r.key as string}>
+                <td style={{ textAlign: "left", color: "var(--muted)" }}>{r.label}</td>
+                <td style={{ fontWeight: r.key === "pts" ? 700 : 400 }}>{cell(b.home, r)}</td>
+                <td style={{ fontWeight: r.key === "pts" ? 700 : 400 }}>{cell(b.away, r)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

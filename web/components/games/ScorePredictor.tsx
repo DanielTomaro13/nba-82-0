@@ -165,7 +165,8 @@ export default function ScorePredictor() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(`${BASE}/data/results.json`, { cache: "force-cache" });
+        const VER = process.env.NEXT_PUBLIC_DATA_VERSION ? `?v=${process.env.NEXT_PUBLIC_DATA_VERSION}` : "";
+        const res = await fetch(`${BASE}/data/results.json${VER}`, { cache: "force-cache" });
         const data: ResultsData = await res.json();
         if (!alive) return;
         const s = data.seasons[0];
