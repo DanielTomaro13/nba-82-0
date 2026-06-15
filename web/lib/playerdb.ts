@@ -23,9 +23,8 @@ export function allPlayers(): ProfilePlayer[] {
 }
 
 /**
- * Players notable enough to get a statically pre-rendered profile page. Capped
- * to the most famous so the static build stays a sensible size (the dataset has
- * 2,000+ players; we pre-render the top tier and the rest 404 gracefully).
+ * The most famous players first — used for "featured" lists and the sitemap.
+ * (Every player in the dataset gets a page; this is just an ordering/cap.)
  */
 export function notablePlayers(): ProfilePlayer[] {
   return [...allPlayers()].sort((a, b) => b.fame - a.fame).slice(0, 800);
@@ -33,6 +32,13 @@ export function notablePlayers(): ProfilePlayer[] {
 
 export function playerById(id: string): ProfilePlayer | null {
   return allPlayers().find((p) => String(p.id) === String(id)) ?? null;
+}
+
+let _ids: Set<number> | null = null;
+/** True if this player id has a profile page (i.e. exists in the dataset). */
+export function playerHasPage(id: number | string): boolean {
+  if (!_ids) _ids = new Set(allPlayers().map((p) => p.id));
+  return _ids.has(Number(id));
 }
 
 let _seasons: Record<string, SeasonLine[]> | null = null;

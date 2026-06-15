@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { pageMeta, breadcrumbJsonLd, SITE } from "@/lib/seo";
 import { allMatchIds, matchById } from "@/lib/matchdb";
+import { playerHasPage } from "@/lib/playerdb";
 import { clubColors, clubAbbr } from "@/lib/clubs";
 import { slugify } from "@/lib/format";
 import type { TeamBoxFull, PlayerLine } from "@/lib/data";
@@ -59,7 +60,9 @@ function Lineup({ team }: { team: TeamBoxFull }) {
             {played.map((p: PlayerLine) => (
               <tr key={p.pid}>
                 <td style={{ textAlign: "left", whiteSpace: "nowrap" }}>
-                  <Link href={`/players/${p.pid}/${slugify(p.name)}`}>{p.name}</Link>
+                  {playerHasPage(p.pid)
+                    ? <Link href={`/players/${p.pid}/${slugify(p.name)}`}>{p.name}</Link>
+                    : <span>{p.name}</span>}
                 </td>
                 <td>{p.min}</td>
                 <td style={{ fontWeight: 700 }}>{p.pts}</td>

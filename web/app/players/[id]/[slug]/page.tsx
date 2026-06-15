@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { pageMeta, breadcrumbJsonLd, SITE } from "@/lib/seo";
-import { notablePlayers, playerById, seasonsFor, shotsFor } from "@/lib/playerdb";
+import { allPlayers, playerById, seasonsFor, shotsFor } from "@/lib/playerdb";
 import { clubColors, clubAbbr } from "@/lib/clubs";
 import { POS_GROUP } from "@/lib/format";
 import JsonLd from "@/components/JsonLd";
@@ -11,8 +11,11 @@ import { AD_SLOTS } from "@/lib/ads";
 
 export const dynamicParams = false;
 
+// Pre-render a page for EVERY player in the dataset so links from box scores,
+// rosters and leaderboards never 404 (was capped to the top 800 → role players
+// in match lineups 404'd).
 export function generateStaticParams() {
-  return notablePlayers().map((p) => ({ id: String(p.id), slug: p.slug }));
+  return allPlayers().map((p) => ({ id: String(p.id), slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string; slug: string }> }) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { pageMeta, breadcrumbJsonLd, SITE } from "@/lib/seo";
 import { allTeams, teamByAbbr, teamRoster, teamLeaders, teamRecords, teamTitles } from "@/lib/teamdb";
 import { recentMatchesForTeam } from "@/lib/matchdb";
+import { playerHasPage } from "@/lib/playerdb";
 import { clubColors } from "@/lib/clubs";
 import JsonLd from "@/components/JsonLd";
 import AdUnit from "@/components/AdUnit";
@@ -115,15 +116,21 @@ export default async function TeamPage({ params }: { params: Promise<{ abbr: str
 
       <h2 style={{ margin: 0, fontSize: "1.2rem" }}>All-time roster <span style={{ fontSize: ".8rem", color: "var(--muted)", fontWeight: 400 }}>({roster.length} players)</span></h2>
       <div className="grid-cards">
-        {roster.slice(0, 60).map((p) => (
-          <Link key={p.pid} href={`/players/${p.pid}/${p.slug}`} className="card" style={{ padding: ".8rem", display: "grid", gap: 3 }}>
-            <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
-              <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.2rem", color: p.rating >= 90 ? "var(--gold)" : "var(--text)" }}>{p.rating}</span>
-            </span>
-            <span style={{ fontSize: ".72rem", color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{p.posName} · {p.era} · {p.pts} PPG</span>
-          </Link>
-        ))}
+        {roster.slice(0, 60).map((p) => {
+          const inner = (
+            <>
+              <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
+                <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.2rem", color: p.rating >= 90 ? "var(--gold)" : "var(--text)" }}>{p.rating}</span>
+              </span>
+              <span style={{ fontSize: ".72rem", color: "var(--muted)", fontFamily: "var(--font-mono)" }}>{p.posName} · {p.era} · {p.pts} PPG</span>
+            </>
+          );
+          const style = { padding: ".8rem", display: "grid", gap: 3 } as const;
+          return playerHasPage(p.pid)
+            ? <Link key={p.pid} href={`/players/${p.pid}/${p.slug}`} className="card" style={style}>{inner}</Link>
+            : <div key={p.pid} className="card" style={style}>{inner}</div>;
+        })}
       </div>
 
       {records.length > 0 && <>
