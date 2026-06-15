@@ -22,6 +22,7 @@ export interface Playoffs {
   season: string;
   active: boolean;
   champion: string;
+  runnerUp?: string;
   rounds: { name: string; series: Series[] }[];
   seeds: Record<string, Seed[]>;
 }
@@ -41,3 +42,4 @@ export const loadPoolYears = () => loadJson<PoolPlayer[]>("poolYears.json");
 export const loadResults = () => loadJson<Results>("results.json");
 export const loadStrengths = () => loadJson<{ bySeason: Record<string, number[]> }>("strengths.json");
 export const loadPlayoffs = () => loadJson<Playoffs>("playoffs.json");
+export const loadPlayoffsBySeason = () => loadJson<Record<string, Playoffs>>("playoffsBySeason.json");

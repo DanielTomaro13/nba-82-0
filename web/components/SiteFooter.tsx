@@ -45,6 +45,7 @@ export default function SiteFooter() {
             <strong style={{ color: "var(--text)" }}>Stats</strong>
             <Link href="/ladder">Standings</Link>
             <Link href="/playoffs">Playoffs</Link>
+            <Link href="/teams">Teams</Link>
             <Link href="/players">Players</Link>
             <Link href="/fixtures">Schedule</Link>
             <Link href="/stats">Leaders</Link>

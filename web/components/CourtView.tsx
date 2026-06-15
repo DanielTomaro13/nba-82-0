@@ -16,21 +16,24 @@ function Node({ code, p, onRemove, done }: { code: string; p: PoolPlayer | null;
   const rating = p ? effectiveRating(p, false) : 0;
   return (
     <div style={{ position: "absolute", left: `${SPOT[code].x}%`, top: `${SPOT[code].y}%`, transform: "translate(-50%,-50%)", textAlign: "center", width: 78 }}>
-      <div
-        onClick={p && !done && onRemove ? onRemove : undefined}
-        title={p ? `${p.name} — tap to remove` : code}
-        style={{
-          width: 42, height: 42, margin: "0 auto", borderRadius: "50%",
-          display: "grid", placeItems: "center",
-          background: p ? "var(--panel-2)" : "transparent",
-          border: p ? `2px solid ${c1}` : "2px dashed var(--border)",
-          boxShadow: p ? `0 0 0 2px ${c2}55` : "none",
-          color: rating >= 90 ? "var(--gold)" : "var(--text)",
-          fontFamily: "var(--font-cond)", fontSize: p ? "1.15rem" : ".8rem",
-          cursor: p && !done ? "pointer" : "default",
-        }}
-      >
-        {p ? rating : code}
+      <div style={{ position: "relative", width: 42, margin: "0 auto" }}>
+        <div
+          title={p ? p.name : code}
+          style={{
+            width: 42, height: 42, borderRadius: "50%", display: "grid", placeItems: "center",
+            background: p ? "var(--panel-2)" : "transparent",
+            border: p ? `2px solid ${c1}` : "2px dashed var(--border)",
+            boxShadow: p ? `0 0 0 2px ${c2}55` : "none",
+            color: rating >= 90 ? "var(--gold)" : "var(--text)",
+            fontFamily: "var(--font-cond)", fontSize: p ? "1.15rem" : ".8rem",
+          }}
+        >
+          {p ? rating : code}
+        </div>
+        {p && !done && onRemove && (
+          <button onClick={onRemove} aria-label={`Remove ${p.name}`} title="Remove"
+            style={{ position: "absolute", top: -6, right: -8, width: 18, height: 18, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--panel)", color: "var(--muted)", fontSize: ".7rem", lineHeight: 1, cursor: "pointer", display: "grid", placeItems: "center", padding: 0 }}>×</button>
+        )}
       </div>
       {p && (
         <div style={{ fontSize: ".6rem", color: "var(--text)", marginTop: 2, lineHeight: 1.1, fontWeight: 600, textShadow: "0 1px 3px #000" }}>

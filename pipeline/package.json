@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node build-data.mjs",
     "shots": "node fetch-shots.mjs",
-    "legends": "node fetch-legends.mjs"
+    "legends": "node fetch-legends.mjs",
+    "playoffs": "node fetch-playoffs.mjs"
   }
 }

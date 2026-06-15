@@ -1,6 +1,6 @@
 import { pageMeta } from "@/lib/seo";
 import { serverPlayoffs } from "@/lib/serverdata";
-import PlayoffBracket from "@/components/PlayoffBracket";
+import PlayoffsView from "@/components/PlayoffsView";
 
 export function generateMetadata() {
   const po = serverPlayoffs();
@@ -19,10 +19,10 @@ export default function PlayoffsPage() {
       <header>
         <h1 style={{ fontSize: "2rem", margin: 0, textTransform: "uppercase" }}>NBA Playoffs</h1>
         <p style={{ color: "var(--muted)", marginTop: 6 }}>
-          The {po.season} bracket — every series from the first round to the Finals.
+          Real playoff brackets — every series, winner and score from the NBA Stats API.
         </p>
       </header>
-      <PlayoffBracket data={po} />
+      <PlayoffsView initial={po} />
     </div>
   );
 }

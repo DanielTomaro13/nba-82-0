@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { pageMeta, breadcrumbJsonLd, SITE } from "@/lib/seo";
 import { notablePlayers, playerById, seasonsFor, shotsFor } from "@/lib/playerdb";
-import { clubColors } from "@/lib/clubs";
+import { clubColors, clubAbbr } from "@/lib/clubs";
 import { POS_GROUP } from "@/lib/format";
 import JsonLd from "@/components/JsonLd";
 import ShotChart from "@/components/ShotChart";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export const dynamicParams = false;
 
@@ -68,7 +70,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
             <h1 style={{ margin: 0, fontSize: "2rem" }}>{p.name}</h1>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, color: "var(--muted)" }}>
               <span style={{ width: 12, height: 12, borderRadius: 3, background: c1, border: `1px solid ${c2}` }} />
-              {p.club} · {p.posName}{bio?.jersey ? ` · #${bio.jersey}` : ""}
+              <Link href={`/teams/${clubAbbr(p.club).toLowerCase()}`} style={{ color: "var(--accent)" }}>{p.club}</Link> · {p.posName}{bio?.jersey ? ` · #${bio.jersey}` : ""}
             </div>
           </div>
           <div style={{ textAlign: "center" }}>
@@ -139,6 +141,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
         NBA data: {p.pts} points, {p.reb} rebounds and {p.ast} assists a game{p.ts ? ` on ${p.ts}% true shooting` : ""}. {" "}
         <Link href="/play" style={{ color: "var(--accent)" }}>Draft {p.name.split(" ")[0]} into your perfect team →</Link>
       </p>
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

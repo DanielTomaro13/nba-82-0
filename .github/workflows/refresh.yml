@@ -26,6 +26,8 @@ jobs:
         # If the runner's IP is rate-limited/blocked, keep the committed dataset
         # rather than overwriting it (the pipeline only writes on full success).
         run: npm run data || echo "Live refresh failed — keeping the committed dataset."
+      - name: Refresh playoff brackets (best-effort)
+        run: npm run playoffs || echo "Playoff refresh skipped."
       - name: Refresh shot charts (best-effort)
         run: npm run shots || echo "Shot-chart refresh skipped."
       - name: Commit refreshed data

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { loadResults, type Results } from "@/lib/data";
-import { clubColors } from "@/lib/clubs";
+import { clubColors, clubAbbr } from "@/lib/clubs";
 
 const pct = (w: number, l: number) => (w + l ? (w / (w + l)).toFixed(3).replace(/^0/, "") : ".000");
 const DIVS: Record<string, string[]> = {
@@ -58,9 +58,11 @@ export default function LadderView() {
               return (
                 <tr key={t.club} style={tone ? { background: tone } : undefined}>
                   <td style={{ color: i < cut.p ? "var(--accent-2)" : i < cut.pi ? "var(--gold)" : "var(--muted)", fontWeight: 700 }}>{i + 1}</td>
-                  <td style={{ display: "flex", gap: 8, alignItems: "center", whiteSpace: "nowrap" }}>
-                    <span style={{ width: 9, height: 9, borderRadius: 2, background: c1, flexShrink: 0 }} />
-                    <span title={`${t.club}${t.div ? ` · ${t.div}` : ""}`}>{t.club}</span>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <Link href={`/teams/${clubAbbr(t.club).toLowerCase()}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ width: 9, height: 9, borderRadius: 2, background: c1, flexShrink: 0 }} />
+                      <span title={`${t.club}${t.div ? ` · ${t.div}` : ""}`}>{t.club}</span>
+                    </Link>
                   </td>
                   <td style={{ fontWeight: 700 }}>{t.w}</td><td>{t.l}</td>
                   <td style={{ fontFamily: "var(--font-mono)" }}>{pct(t.w, t.l)}</td>
