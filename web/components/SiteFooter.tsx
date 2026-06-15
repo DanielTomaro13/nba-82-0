@@ -49,6 +49,8 @@ export default function SiteFooter() {
             <Link href="/players">Players</Link>
             <Link href="/fixtures">Schedule</Link>
             <Link href="/stats">Leaders</Link>
+            <Link href="/compare">Compare players</Link>
+            <Link href="/glossary">Stats glossary</Link>
           </nav>
           <nav style={{ display: "grid", gap: 6, fontSize: ".85rem" }}>
             <strong style={{ color: "var(--text)" }}>About</strong>

@@ -1,5 +1,7 @@
 import { pageMeta } from "@/lib/seo";
 import FixturesView from "@/components/FixturesView";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export const metadata = pageMeta({
   title: "NBA Schedule & Results",
@@ -16,6 +18,7 @@ export default function FixturesPage() {
         <p style={{ color: "var(--muted)", marginTop: 6 }}>Completed NBA games by week, with real scores.</p>
       </header>
       <FixturesView />
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

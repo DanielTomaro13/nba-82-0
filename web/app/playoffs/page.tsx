@@ -1,6 +1,8 @@
 import { pageMeta } from "@/lib/seo";
 import { serverPlayoffs } from "@/lib/serverdata";
 import PlayoffsView from "@/components/PlayoffsView";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export function generateMetadata() {
   const po = serverPlayoffs();
@@ -23,6 +25,7 @@ export default function PlayoffsPage() {
         </p>
       </header>
       <PlayoffsView initial={po} />
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

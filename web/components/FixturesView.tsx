@@ -12,6 +12,13 @@ export default function FixturesView() {
   const [week, setWeek] = useState<string>("");
   const [open, setOpen] = useState<MatchResult | null>(null);
   useEffect(() => { loadResults().then((r) => { setData(r); setSeason(r.seasons[0]); }); }, []);
+  // Close the box-score modal on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const weeks = useMemo(() => {
     const ws = new Set<number>();
@@ -97,11 +104,11 @@ const cell = (b: TeamBox, r: { key: keyof TeamBox; att?: keyof TeamBox }) => {
 function BoxScoreModal({ m, onClose }: { m: MatchResult; onClose: () => void }) {
   const b = m.box!; const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.66)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div onClick={onClose} role="dialog" aria-modal="true" aria-label={`${m.away} at ${m.home} box score`} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.66)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: "max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))" }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ padding: "1.1rem", maxWidth: 460, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <strong style={{ fontSize: ".82rem", color: "var(--muted)" }}>{m.date || "Final"}</strong>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "1.3rem", cursor: "pointer", lineHeight: 1 }}>×</button>
+          <button onClick={onClose} aria-label="Close box score" style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "1.3rem", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 6, alignItems: "center", marginBottom: 12 }}>
           <span style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: m.hs > m.as ? 700 : 400 }}><span style={{ width: 9, height: 9, borderRadius: 2, background: h1 }} />{m.home}</span>

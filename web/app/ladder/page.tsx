@@ -1,6 +1,8 @@
 import { pageMeta } from "@/lib/seo";
 import { serverMeta } from "@/lib/serverdata";
 import LadderView from "@/components/LadderView";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export function generateMetadata() {
   const m = serverMeta();
@@ -23,6 +25,7 @@ export default function LadderPage() {
         </p>
       </header>
       <LadderView />
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

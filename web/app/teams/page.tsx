@@ -2,6 +2,8 @@ import Link from "next/link";
 import { pageMeta } from "@/lib/seo";
 import { allTeams } from "@/lib/teamdb";
 import { clubColors } from "@/lib/clubs";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export const metadata = pageMeta({
   title: "NBA Teams — all 30 franchises, rosters & stats",
@@ -41,6 +43,7 @@ export default function TeamsPage() {
           ))}
         </section>
       ))}
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

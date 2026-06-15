@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Inter, Oswald, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted at build time (works with static export). These were referenced
+// in globals.css by name but never actually loaded — headers silently fell back
+// to Arial Narrow / system. Now they're real.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const oswald = Oswald({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-oswald", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jbmono", display: "swap" });
 import SisterSites from "@/components/SisterSites";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -100,7 +108,7 @@ const orgEntityLd = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-US">
+    <html lang="en-US" className={`${inter.variable} ${oswald.variable} ${mono.variable}`}>
       <body>
         <SisterSites active="nba" />
         <SiteHeader />

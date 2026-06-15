@@ -6,7 +6,9 @@ import { clubColors } from "@/lib/clubs";
 import { slugify } from "@/lib/format";
 
 const sel: React.CSSProperties = { padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" };
-const fmtPct = (k: string) => k === "ts";
+const PCT_CATS = new Set(["ts", "fg3Pct", "ftPct", "fgPct"]);
+const fmtValue = (k: string, v: number) =>
+  PCT_CATS.has(k) ? `${v}%` : k === "netRtg" ? (v > 0 ? `+${v}` : `${v}`) : `${v}`;
 
 export default function SeasonLeaders() {
   const [data, setData] = useState<SeasonLeaders | null>(null);
@@ -39,7 +41,7 @@ export default function SeasonLeaders() {
                       <span style={{ width: 16, color: "var(--muted)", fontFamily: "var(--font-mono)", fontSize: ".75rem" }}>{i + 1}</span>
                       <span style={{ width: 7, height: 7, borderRadius: 2, background: c1, flexShrink: 0 }} />
                       <Link href={`/players/${p.pid}/${slugify(p.name)}`} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</Link>
-                      <span style={{ fontFamily: "var(--font-cond)", color: "var(--gold)" }}>{fmtPct(c.key) ? `${p.value}%` : p.value}</span>
+                      <span style={{ fontFamily: "var(--font-cond)", color: "var(--gold)" }}>{fmtValue(c.key, p.value)}</span>
                     </li>
                   );
                 })}

@@ -45,6 +45,7 @@ export default function Home() {
         </div>
         <Link href="/games/footle" className="btn">🟧 Hoople</Link>
         <Link href="/games/guess-the-player" className="btn">🕵️ Guess the Player</Link>
+        <Link href="/games/draft-class" className="btn">🎓 Draft Class</Link>
         <Link href="/games/score-predictor" className="btn">🔮 Score Predictor</Link>
       </section>
 

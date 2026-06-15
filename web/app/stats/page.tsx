@@ -3,6 +3,8 @@ import { pageMeta } from "@/lib/seo";
 import { allPlayers, type ProfilePlayer } from "@/lib/playerdb";
 import { clubColors } from "@/lib/clubs";
 import SeasonLeaders from "@/components/SeasonLeaders";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export const metadata = pageMeta({
   title: "NBA Stat Leaders — points, rebounds, assists & more",
@@ -27,6 +29,10 @@ export default function StatsPage() {
       <header>
         <h1 style={{ fontSize: "2rem", margin: 0, textTransform: "uppercase" }}>Stat Leaders</h1>
         <p style={{ color: "var(--muted)", marginTop: 6 }}>Per-season and career leaders, from real NBA match stats.</p>
+        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          <Link href="/compare" className="btn" style={{ minHeight: 36, padding: ".4rem .8rem", fontSize: ".82rem" }}>⚖️ Compare players</Link>
+          <Link href="/glossary" className="btn" style={{ minHeight: 36, padding: ".4rem .8rem", fontSize: ".82rem" }}>📖 Stats glossary</Link>
+        </div>
       </header>
 
       <section style={{ display: "grid", gap: 12 }}>
@@ -58,6 +64,7 @@ export default function StatsPage() {
           );
         })}
       </div>
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

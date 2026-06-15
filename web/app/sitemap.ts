@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 import { SITE } from "@/lib/seo";
-import { notablePlayers } from "@/lib/playerdb";
+import { allPlayers } from "@/lib/playerdb";
 import { allTeams } from "@/lib/teamdb";
 import { allMatchIds } from "@/lib/matchdb";
 
 export const dynamic = "force-static";
 
 const GAMES = [
-  "invincibles", "footle", "higher-or-lower", "guess-the-player",
-  "career-path", "beat-the-clock", "score-predictor",
+  "footle", "guess-the-player", "draft-class", "higher-or-lower",
+  "efficiency-duel", "bracket-challenge", "career-path", "beat-the-clock", "score-predictor",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -23,6 +23,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE.url}/players/`, priority: 0.8, changeFrequency: "weekly", lastModified: now },
     { url: `${SITE.url}/fixtures/`, priority: 0.7, changeFrequency: "daily", lastModified: now },
     { url: `${SITE.url}/stats/`, priority: 0.7, changeFrequency: "weekly", lastModified: now },
+    { url: `${SITE.url}/compare/`, priority: 0.6, changeFrequency: "weekly", lastModified: now },
+    { url: `${SITE.url}/glossary/`, priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { url: `${SITE.url}/leaderboard/`, priority: 0.6, changeFrequency: "daily", lastModified: now },
     { url: `${SITE.url}/about/`, priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { url: `${SITE.url}/contact/`, priority: 0.4, changeFrequency: "yearly", lastModified: now },
@@ -35,7 +37,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly",
     lastModified: now,
   }));
-  const players: MetadataRoute.Sitemap = notablePlayers().map((p) => ({
+  const players: MetadataRoute.Sitemap = allPlayers().map((p) => ({
     url: `${SITE.url}/players/${p.id}/${p.slug}/`,
     priority: 0.5,
     changeFrequency: "weekly",

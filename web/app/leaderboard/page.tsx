@@ -1,5 +1,7 @@
 import { pageMeta } from "@/lib/seo";
 import LeaderboardView from "@/components/LeaderboardView";
+import AdUnit from "@/components/AdUnit";
+import { AD_SLOTS } from "@/lib/ads";
 
 export const metadata = pageMeta({
   title: "Hall of Fame — NBA 82-0 leaderboards",
@@ -16,6 +18,7 @@ export default function LeaderboardPage() {
         <p style={{ color: "var(--muted)", marginTop: 6 }}>The best records, runs and streaks across every game.</p>
       </header>
       <LeaderboardView />
+      <AdUnit slot={AD_SLOTS.result} />
     </div>
   );
 }

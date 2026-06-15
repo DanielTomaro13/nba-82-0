@@ -363,11 +363,18 @@ async function main() {
 
   /* ---- per-season statistical leaders (derived from real year cards) ----- */
   // Only rank players with a credible sample so per-game rates aren't noise.
+  // `vol` is a volume guard (key + per-game minimum) so rate/% leaders aren't
+  // dominated by tiny samples (e.g. a 1-for-1 three-point night).
   const LEAD_CATS = [
     { key: "pts", label: "Points", min: 30 }, { key: "reb", label: "Rebounds", min: 30 },
     { key: "ast", label: "Assists", min: 30 }, { key: "stl", label: "Steals", min: 30 },
     { key: "blk", label: "Blocks", min: 30 }, { key: "fg3", label: "Threes", min: 30 },
+    { key: "mpg", label: "Minutes", min: 30 },
     { key: "ts", label: "True Shooting %", min: 40 }, { key: "pie", label: "Player Impact", min: 40 },
+    { key: "netRtg", label: "Net Rating", min: 40 },
+    { key: "fg3Pct", label: "Three-Point %", min: 40, vol: { key: "fg3", min: 1.2 } },
+    { key: "ftPct", label: "Free Throw %", min: 40, vol: { key: "pts", min: 8 } },
+    { key: "fgPct", label: "Field Goal %", min: 40, vol: { key: "pts", min: 8 } },
   ];
   const cardsBySeasonForLeaders = {};
   for (const c of yearCards) (cardsBySeasonForLeaders[c.era] ||= []).push(c);
@@ -375,7 +382,8 @@ async function main() {
   for (const [season, cards] of Object.entries(cardsBySeasonForLeaders)) {
     const cats = {};
     for (const cat of LEAD_CATS) {
-      const ranked = cards.filter((c) => (c.g || 0) >= cat.min && (c[cat.key] || 0) > 0)
+      const ranked = cards
+        .filter((c) => (c.g || 0) >= cat.min && (c[cat.key] || 0) > 0 && (!cat.vol || (c[cat.vol.key] || 0) >= cat.vol.min))
         .sort((a, b) => (b[cat.key] || 0) - (a[cat.key] || 0)).slice(0, 15)
         .map((c) => ({ pid: c.pid, name: c.name, club: c.club, value: c[cat.key] }));
       if (ranked.length) cats[cat.key] = ranked;
