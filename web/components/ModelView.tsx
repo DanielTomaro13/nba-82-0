@@ -17,7 +17,9 @@ type FuturesTeam = {
 };
 type OddsSel = { label: string; model: number; fair: number; best?: { price: number; book: string }; ev: number };
 type OddsGame = { league: string; homeAbbr: string; awayAbbr: string; markets: { label: string; selections: OddsSel[] }[] };
-type Fantasy = { id: string; name: string; team: string; pos: string[]; price: number; proj: number; value: number | null; owned: number; gp: number };
+type Fantasy = { id: string; name: string; team: string; pos: string[]; price: number; proj: number; value: number | null; owned: number; gp: number; captain: number; pos_rank: string; price_change: number; ppm: number; opp: string };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Leaders = Record<string, { label: string; rows: { name: string; team: string; per_game: number; proj_total: number }[] }> | null;
 
 const pct = (p: number | null | undefined) => (p == null ? "—" : Math.round(p * 100) + "%");
 const od = (v: number | null | undefined) => (v && v > 0 ? v.toFixed(2) : "—");
@@ -111,12 +113,14 @@ function GameModal({ f, detail, onClose }: { f: Fixture; detail: any | null; onC
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default function ModelView({ league }: { league: "nba" | "nbl" }) {
-  const [tab, setTab] = useState<"projections" | "futures" | "value" | "fantasy">("projections");
+  const [tab, setTab] = useState<"projections" | "futures" | "value" | "fantasy" | "leaders">("projections");
   const [fixtures, setFixtures] = useState<Fixture[] | null>(null);
   const [futures, setFutures] = useState<FuturesTeam[] | null>(null);
   const [odds, setOdds] = useState<OddsGame[] | null>(null);
   const [fantasy, setFantasy] = useState<Fantasy[] | null>(null);
-  const [fSort, setFSort] = useState<"proj" | "value" | "price" | "owned">("proj");
+  const [leaders, setLeaders] = useState<Leaders>(null);
+  const [leadCat, setLeadCat] = useState<string>("pts");
+  const [fSort, setFSort] = useState<"proj" | "value" | "price" | "owned" | "captain" | "price_change">("proj");
   const [fq, setFq] = useState("");
   const [updated, setUpdated] = useState<string>("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,6 +134,7 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
     fetch(`${BASE}/futures.json`).then((r) => r.json()).then((d) => setFutures(d.leagues?.[league]?.teams || [])).catch(() => setFutures([]));
     fetch(`${BASE}/odds.json`).then((r) => r.json()).then((d) => setOdds((d.games || []).filter((g: OddsGame) => g.league === league))).catch(() => setOdds([]));
     fetch(`${BASE}/fantasy-${league}.json`).then((r) => r.json()).then((d) => setFantasy(d.players || [])).catch(() => setFantasy([]));
+    fetch(`${BASE}/leaders.json`).then((r) => r.json()).then((d) => setLeaders(d.leagues?.[league]?.cats || null)).catch(() => setLeaders(null));
   }, [league]);
 
   function openGame(f: Fixture) {
@@ -150,6 +155,7 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
         <button style={tabBtn(tab === "futures")} onClick={() => setTab("futures")}>Futures</button>
         <button style={tabBtn(tab === "value")} onClick={() => setTab("value")}>Value</button>
         <button style={tabBtn(tab === "fantasy")} onClick={() => setTab("fantasy")}>Fantasy</button>
+        <button style={tabBtn(tab === "leaders")} onClick={() => setTab("leaders")}>Leaders</button>
         {updated && <span style={{ marginLeft: "auto", color: "var(--muted)", fontSize: ".75rem", alignSelf: "center" }}>updated {updated}</span>}
       </div>
 
@@ -194,15 +200,31 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
         !fantasy.length ? <p style={{ color: "var(--muted)" }}>SuperCoach data unavailable.</p> : <>
         <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
           <input value={fq} onChange={(e) => setFq(e.target.value)} placeholder="Search players…" style={{ flex: 1, minWidth: 140, padding: ".45rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }} />
-          <select value={fSort} onChange={(e) => setFSort(e.target.value as "proj" | "value" | "price" | "owned")} style={{ padding: ".45rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" }}>
-            <option value="proj">Projection</option><option value="value">Value</option><option value="price">Price</option><option value="owned">Ownership</option>
+          <select value={fSort} onChange={(e) => setFSort(e.target.value as "proj" | "value" | "price" | "owned" | "captain" | "price_change")} style={{ padding: ".45rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" }}>
+            <option value="proj">Projection</option><option value="captain">Captain</option><option value="value">Value</option><option value="price">Price</option><option value="price_change">Price move</option><option value="owned">Ownership</option>
           </select>
         </div>
         <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><th style={{ ...th, textAlign: "left" }}>Player</th><th style={th}>Team</th><th style={th}>Pos</th><th style={th}>Price</th><th style={th}>Proj</th><th style={th}>Value</th><th style={th}>Owned</th></tr></thead>
+          <thead><tr><th style={{ ...th, textAlign: "left" }}>Player</th><th style={th}>Team</th><th style={th}>Pos</th><th style={th}>Price</th><th style={th}>Δ</th><th style={th}>Proj</th><th style={th}>Capt</th><th style={th}>Value</th><th style={th}>Own</th><th style={th}>Next</th></tr></thead>
           <tbody>{fRows.map((p) => (
-            <tr key={p.id}><td style={{ ...td, textAlign: "left" }}><strong>{p.name}</strong></td><td style={{ ...td, color: "var(--muted)" }}>{p.team}</td><td style={{ ...td, color: "var(--muted)" }}>{(p.pos || []).join("/")}</td>
-              <td style={td}>${(p.price / 1000).toFixed(0)}k</td><td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>{p.proj}</td><td style={td}>{p.value ?? "—"}</td><td style={{ ...td, color: "var(--muted)" }}>{p.owned}%</td></tr>))}</tbody>
+            <tr key={p.id}><td style={{ ...td, textAlign: "left" }}><strong>{p.name}</strong>{p.pos_rank && parseInt(p.pos_rank.replace(/\D/g, ""), 10) <= 30 ? <span style={{ marginLeft: 6, fontSize: ".68rem", color: "var(--gold)", fontWeight: 700 }}>{p.pos_rank}</span> : null}</td>
+              <td style={{ ...td, color: "var(--muted)" }}>{p.team}</td><td style={{ ...td, color: "var(--muted)" }}>{(p.pos || []).join("/")}</td>
+              <td style={td}>${(p.price / 1000).toFixed(0)}k</td><td style={{ ...td, color: p.price_change > 0 ? "var(--gold)" : p.price_change < 0 ? "var(--danger,#ff6b6b)" : "var(--muted)" }}>{p.price_change ? (p.price_change > 0 ? "+" : "") + (p.price_change / 1000).toFixed(0) + "k" : "0"}</td>
+              <td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>{p.proj}</td><td style={{ ...td, color: "var(--muted)" }}>{p.captain}</td><td style={td}>{p.value ?? "—"}</td><td style={{ ...td, color: "var(--muted)" }}>{p.owned}%</td><td style={{ ...td, color: "var(--muted)" }}>{p.opp || "—"}</td></tr>))}</tbody>
+        </table></div></div></>
+      )}
+
+      {tab === "leaders" && (
+        !leaders ? <p style={{ color: "var(--muted)" }}>Loading leaders…</p> : <>
+        <div style={{ display: "flex", gap: ".4rem", flexWrap: "wrap" }}>
+          {Object.entries(leaders).map(([k, c]) => <button key={k} style={tabBtn(leadCat === k)} onClick={() => setLeadCat(k)}>{c.label}</button>)}
+        </div>
+        <p style={{ color: "var(--muted)", fontSize: ".78rem" }}>Model-projected season leaders — each player&apos;s per-game rate over a full season.</p>
+        <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={{ ...th, textAlign: "left" }}>#</th><th style={{ ...th, textAlign: "left" }}>Player</th><th style={th}>Team</th><th style={th}>Per game</th><th style={th}>Proj season</th></tr></thead>
+          <tbody>{(leaders[leadCat]?.rows || []).map((r, i) => (
+            <tr key={i}><td style={{ ...td, textAlign: "left", color: "var(--muted)" }}>{i + 1}</td><td style={{ ...td, textAlign: "left" }}><strong>{r.name}</strong></td><td style={{ ...td, color: "var(--muted)" }}>{r.team}</td>
+              <td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>{r.per_game}</td><td style={{ ...td, color: "var(--muted)" }}>{r.proj_total.toLocaleString()}</td></tr>))}</tbody>
         </table></div></div></>
       )}
 
