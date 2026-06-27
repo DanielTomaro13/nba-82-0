@@ -17,6 +17,7 @@ type FuturesTeam = {
 };
 type OddsSel = { label: string; model: number; fair: number; best?: { price: number; book: string }; ev: number };
 type OddsGame = { league: string; homeAbbr: string; awayAbbr: string; markets: { label: string; selections: OddsSel[] }[] };
+type FutOdds = { team: string; abbr: string; model_pct: number; model_fair: number | null; books: Record<string, number>; best?: { price: number; book: string }; edge?: number };
 type Fantasy = { id: string; name: string; team: string; pos: string[]; price: number; proj: number; value: number | null; owned: number; gp: number; captain: number; pos_rank: string; price_change: number; ppm: number; opp: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Leaders = Record<string, { label: string; rows: { name: string; team: string; per_game: number; proj_total: number }[] }> | null;
@@ -110,6 +111,44 @@ function GameModal({ f, detail, onClose }: { f: Fixture; detail: any | null; onC
     </div>
   );
 }
+
+const bookLabel = (b: string) => ({ sportsbet: "Sportsbet", ladbrokes: "Ladbrokes", pointsbet: "PointsBet", tab: "TAB", dabble: "Dabble" } as Record<string, string>)[b] || b;
+
+function FuturesValueTable({ rows, books }: { rows: FutOdds[]; books: string[] }) {
+  return (
+    <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead><tr><th style={{ ...th, textAlign: "left" }}>Team</th><th style={th}>Model %</th><th style={th}>Fair</th>
+        {books.map((b) => <th key={b} style={th}>{bookLabel(b)}</th>)}<th style={th}>Best</th><th style={th}>Edge</th></tr></thead>
+      <tbody>{rows.map((r, i) => (
+        <tr key={i}><td style={{ ...td, textAlign: "left" }}><strong>{r.team}</strong></td>
+          <td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>{pct(r.model_pct)}</td><td style={{ ...td, color: "var(--muted)" }}>{od(r.model_fair)}</td>
+          {books.map((b) => <td key={b} style={{ ...td, color: r.best?.book === b ? "var(--text)" : "var(--muted)" }}>{od(r.books?.[b])}</td>)}
+          <td style={td}>{od(r.best?.price)}</td>
+          <td style={{ ...td, color: (r.edge ?? 0) > 0 ? "var(--gold)" : "var(--muted)", fontWeight: 700 }}>{r.edge == null ? "—" : (r.edge > 0 ? "+" : "") + (r.edge * 100).toFixed(1) + "%"}</td></tr>))}</tbody>
+    </table></div></div>
+  );
+}
+
+function ValueTab({ value, futOdds, futBooks }: { value: { label: string; model: number; fair: number; best?: { price: number; book: string }; ev: number; g: OddsGame; market: string }[]; futOdds: FutOdds[] | null; futBooks: string[] }) {
+  const futVal = (futOdds || []).filter((r) => (r.edge ?? -1) > 0).sort((a, b) => (b.edge ?? 0) - (a.edge ?? 0));
+  return (
+    <div style={{ display: "grid", gap: "1rem" }}>
+      {value.length > 0 ? (
+        <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={{ ...th, textAlign: "left" }}>Game</th><th style={{ ...th, textAlign: "left" }}>Selection</th><th style={th}>Model</th><th style={th}>Fair</th><th style={th}>Best</th><th style={th}>EV</th></tr></thead>
+          <tbody>{value.map((s, i) => (
+            <tr key={i}><td style={{ ...td, textAlign: "left", color: "var(--muted)" }}>{s.g.awayAbbr} @ {s.g.homeAbbr}</td><td style={{ ...td, textAlign: "left" }}>{s.label} <span style={{ color: "var(--muted)" }}>· {s.market}</span></td>
+              <td style={td}>{pct(s.model)}</td><td style={td}>{od(s.fair)}</td><td style={td}>{od(s.best?.price)} <span style={{ color: "var(--muted)" }}>{s.best?.book}</span></td><td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>+{(s.ev * 100).toFixed(1)}%</td></tr>))}</tbody>
+        </table></div></div>
+      ) : <p style={{ color: "var(--muted)" }}>Game markets open closer to tip-off — here&apos;s where the model sees value in the championship futures.</p>}
+      {futVal.length > 0 && <>
+        <div style={{ fontWeight: 700, marginTop: ".3rem" }}>Championship futures value <span style={{ color: "var(--muted)", fontWeight: 400, fontSize: ".8rem" }}>· {futBooks.map(bookLabel).join(", ")}</span></div>
+        <FuturesValueTable rows={futVal} books={futBooks} />
+      </>}
+      {value.length === 0 && futVal.length === 0 && <p style={{ color: "var(--muted)" }}>No bookmaker value loaded yet.</p>}
+    </div>
+  );
+}
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default function ModelView({ league }: { league: "nba" | "nbl" }) {
@@ -119,6 +158,8 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
   const [odds, setOdds] = useState<OddsGame[] | null>(null);
   const [fantasy, setFantasy] = useState<Fantasy[] | null>(null);
   const [leaders, setLeaders] = useState<Leaders>(null);
+  const [futOdds, setFutOdds] = useState<FutOdds[] | null>(null);
+  const [futBooks, setFutBooks] = useState<string[]>([]);
   const [leadCat, setLeadCat] = useState<string>("pts");
   const [fSort, setFSort] = useState<"proj" | "value" | "price" | "owned" | "captain" | "price_change">("proj");
   const [fq, setFq] = useState("");
@@ -135,6 +176,7 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
     fetch(`${BASE}/odds.json`).then((r) => r.json()).then((d) => setOdds((d.games || []).filter((g: OddsGame) => g.league === league))).catch(() => setOdds([]));
     fetch(`${BASE}/fantasy-${league}.json`).then((r) => r.json()).then((d) => setFantasy(d.players || [])).catch(() => setFantasy([]));
     fetch(`${BASE}/leaders.json`).then((r) => r.json()).then((d) => setLeaders(d.leagues?.[league]?.cats || null)).catch(() => setLeaders(null));
+    fetch(`${BASE}/futures-odds.json`).then((r) => r.json()).then((d) => { setFutOdds(d.leagues?.[league]?.championship || []); setFutBooks(d.books || []); }).catch(() => setFutOdds([]));
   }, [league]);
 
   function openGame(f: Fixture) {
@@ -184,16 +226,7 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
         </table></div></div>
       )}
 
-      {tab === "value" && (
-        !odds ? <p style={{ color: "var(--muted)" }}>Loading value…</p> :
-        !value.length ? <p style={{ color: "var(--muted)" }}>No bookmaker value right now — markets open closer to tip-off. The model&apos;s fair price is on the Projections tab.</p> :
-        <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><th style={{ ...th, textAlign: "left" }}>Game</th><th style={{ ...th, textAlign: "left" }}>Selection</th><th style={th}>Model</th><th style={th}>Fair</th><th style={th}>Best</th><th style={th}>EV</th></tr></thead>
-          <tbody>{value.map((s, i) => (
-            <tr key={i}><td style={{ ...td, textAlign: "left", color: "var(--muted)" }}>{s.g.awayAbbr} @ {s.g.homeAbbr}</td><td style={{ ...td, textAlign: "left" }}>{s.label} <span style={{ color: "var(--muted)" }}>· {s.market}</span></td>
-              <td style={td}>{pct(s.model)}</td><td style={td}>{od(s.fair)}</td><td style={td}>{od(s.best?.price)} <span style={{ color: "var(--muted)" }}>{s.best?.book}</span></td><td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>+{(s.ev * 100).toFixed(1)}%</td></tr>))}</tbody>
-        </table></div></div>
-      )}
+      {tab === "value" && (!odds ? <p style={{ color: "var(--muted)" }}>Loading value…</p> : <ValueTab value={value} futOdds={futOdds} futBooks={futBooks} />)}
 
       {tab === "fantasy" && (
         !fantasy ? <p style={{ color: "var(--muted)" }}>Loading SuperCoach…</p> :
