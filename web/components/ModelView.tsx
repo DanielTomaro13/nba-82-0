@@ -152,7 +152,7 @@ function ValueTab({ value, futOdds, futBooks }: { value: { label: string; model:
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 export default function ModelView({ league }: { league: "nba" | "nbl" }) {
-  const [tab, setTab] = useState<"projections" | "futures" | "value" | "fantasy" | "leaders">("projections");
+  const [tab, setTab] = useState<"projections" | "compare" | "futures" | "value" | "fantasy" | "leaders">("projections");
   const [fixtures, setFixtures] = useState<Fixture[] | null>(null);
   const [futures, setFutures] = useState<FuturesTeam[] | null>(null);
   const [odds, setOdds] = useState<OddsGame[] | null>(null);
@@ -194,6 +194,7 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
         <button style={tabBtn(tab === "projections")} onClick={() => setTab("projections")}>Projections</button>
+        <button style={tabBtn(tab === "compare")} onClick={() => setTab("compare")}>Compare odds</button>
         <button style={tabBtn(tab === "futures")} onClick={() => setTab("futures")}>Futures</button>
         <button style={tabBtn(tab === "value")} onClick={() => setTab("value")}>Value</button>
         <button style={tabBtn(tab === "fantasy")} onClick={() => setTab("fantasy")}>Fantasy</button>
@@ -213,6 +214,15 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
               <td style={td}>{f.homeAbbr} {f.mu_margin > 0 ? "-" : "+"}{Math.abs(f.mu_margin).toFixed(1)}</td><td style={td}>{f.mu_total}</td><td style={td}>{od(f.fair_home)} / {od(f.fair_away)}</td>
             </tr>))}</tbody>
         </table></div></div>
+      )}
+
+      {tab === "compare" && (
+        !futOdds ? <p style={{ color: "var(--muted)" }}>Loading odds…</p> :
+        !futOdds.some((r) => r.books && Object.keys(r.books).length) ?
+          <p style={{ color: "var(--muted)" }}>Game markets open closer to tip-off. Until then, here&apos;s the championship futures across the books.</p> : <>
+          <p style={{ color: "var(--muted)", fontSize: ".8rem" }}>Model fair price vs every book on the championship — {futBooks.map(bookLabel).join(", ")}. Best price highlighted.</p>
+          <FuturesValueTable rows={[...futOdds].filter((r) => r.books && Object.keys(r.books).length).sort((a, b) => b.model_pct - a.model_pct)} books={futBooks} />
+        </>
       )}
 
       {tab === "futures" && (
