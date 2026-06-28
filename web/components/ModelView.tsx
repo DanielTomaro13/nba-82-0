@@ -26,6 +26,7 @@ type Leaders = Record<string, { label: string; rows: { name: string; team: strin
 
 const pct = (p: number | null | undefined) => (p == null ? "—" : Math.round(p * 100) + "%");
 const od = (v: number | null | undefined) => (v && v > 0 ? v.toFixed(2) : "—");
+const confTier = (c: number) => (c >= 0.75 ? "Lock" : c >= 0.65 ? "Strong" : c >= 0.55 ? "Lean" : "Coin flip");
 
 const panel: React.CSSProperties = { background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" };
 const th: React.CSSProperties = { textAlign: "right", padding: ".5rem .65rem", color: "var(--muted)", fontSize: ".72rem", textTransform: "uppercase", letterSpacing: ".03em", borderBottom: "1px solid var(--border)" };
@@ -170,8 +171,8 @@ function ValueTab({ value, futOdds, futBooks }: { value: { label: string; model:
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export default function ModelView({ league }: { league: "nba" | "nbl" }) {
-  const [tab, setTab] = useState<"projections" | "compare" | "futures" | "value" | "fantasy" | "leaders">("projections");
+export default function ModelView({ league }: { league: "nba" | "nbl" | "wnba" }) {
+  const [tab, setTab] = useState<"projections" | "pickem" | "compare" | "futures" | "value" | "fantasy" | "leaders">("projections");
   const [fixtures, setFixtures] = useState<Fixture[] | null>(null);
   const [futures, setFutures] = useState<FuturesTeam[] | null>(null);
   const [odds, setOdds] = useState<OddsGame[] | null>(null);
@@ -214,11 +215,17 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
     .filter((s) => s.ev > 0).sort((a, b) => b.ev - a.ev), [odds]);
   const fRows = useMemo(() => (fantasy || []).filter((p) => p.name.toLowerCase().includes(fq.toLowerCase()))
     .sort((a, b) => ((b[fSort] as number) || 0) - ((a[fSort] as number) || 0)).slice(0, 160), [fantasy, fq, fSort]);
+  // Pick'em: the model's straight-up pick per game, ranked by confidence.
+  const pickem = useMemo(() => (fixtures || []).map((f) => {
+    const homePick = f.win_home >= f.win_away;
+    return { f, homePick, pick: homePick ? f.homeAbbr : f.awayAbbr, conf: Math.max(f.win_home, f.win_away) };
+  }).sort((a, b) => b.conf - a.conf), [fixtures]);
 
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
         <button style={tabBtn(tab === "projections")} onClick={() => setTab("projections")}>Projections</button>
+        <button style={tabBtn(tab === "pickem")} onClick={() => setTab("pickem")}>Pick&apos;em</button>
         <button style={tabBtn(tab === "compare")} onClick={() => setTab("compare")}>Compare odds</button>
         <button style={tabBtn(tab === "futures")} onClick={() => setTab("futures")}>Futures</button>
         <button style={tabBtn(tab === "value")} onClick={() => setTab("value")}>Value</button>
@@ -239,6 +246,23 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
               <td style={td}>{f.homeAbbr} {f.mu_margin > 0 ? "-" : "+"}{Math.abs(f.mu_margin).toFixed(1)}</td><td style={td}>{f.mu_total}</td><td style={td}>{od(f.fair_home)} / {od(f.fair_away)}</td>
             </tr>))}</tbody>
         </table></div></div>
+      )}
+
+      {tab === "pickem" && (
+        !fixtures ? <p style={{ color: "var(--muted)" }}>Loading picks…</p> :
+        !fixtures.length ? <p style={{ color: "var(--muted)" }}>No games to pick right now — check back when the season tips off.</p> : <>
+        <p style={{ color: "var(--muted)", fontSize: ".8rem" }}>The model&apos;s straight-up pick for every game, ranked by confidence. Tap a row for the full market book.</p>
+        <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={{ ...th, textAlign: "left" }}>Matchup</th><th style={{ ...th, textAlign: "left" }}>Pick</th><th style={th}>Confidence</th><th style={{ ...th, textAlign: "left" }}>Lean</th><th style={th}>Proj score</th></tr></thead>
+          <tbody>{pickem.map(({ f, pick, conf, homePick }) => (
+            <tr key={f.gameId} onClick={() => openGame(f)} style={{ cursor: "pointer" }}>
+              <td style={{ ...td, textAlign: "left" }}><strong>{f.awayAbbr} @ {f.homeAbbr}</strong>{f.featured && <span style={{ color: "var(--muted)", fontSize: ".7rem" }}> · featured</span>}<span style={{ color: "var(--accent)", fontSize: ".7rem" }}> · full book ›</span></td>
+              <td style={{ ...td, textAlign: "left", fontWeight: 700, color: "var(--gold)" }}>{pick}</td>
+              <td style={td}>{pct(conf)}</td>
+              <td style={{ ...td, textAlign: "left", color: "var(--muted)" }}>{confTier(conf)}</td>
+              <td style={td}>{homePick ? `${f.proj_home}–${f.proj_away}` : `${f.proj_away}–${f.proj_home}`}</td>
+            </tr>))}</tbody>
+        </table></div></div></>
       )}
 
       {tab === "compare" && (

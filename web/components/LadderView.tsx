@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { loadResults, type Results } from "@/lib/data";
 import { clubColors, clubAbbr } from "@/lib/clubs";
+import { leagueHref, type LeagueId } from "@/lib/league";
 
 const pct = (w: number, l: number) => (w + l ? (w / (w + l)).toFixed(3).replace(/^0/, "") : ".000");
 const DIVS: Record<string, string[]> = {
@@ -12,12 +13,12 @@ const DIVS: Record<string, string[]> = {
 
 const sel: React.CSSProperties = { padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" };
 
-export default function LadderView() {
+export default function LadderView({ league = "nba" }: { league?: LeagueId }) {
   const [data, setData] = useState<Results | null>(null);
   const [season, setSeason] = useState<string>("");
   const [conf, setConf] = useState<string>("All");
   const [div, setDiv] = useState<string>("All");
-  useEffect(() => { loadResults().then((r) => { setData(r); setSeason(r.seasons[0]); }); }, []);
+  useEffect(() => { loadResults(league).then((r) => { setData(r); setSeason(r.seasons[0]); }).catch(() => {}); }, [league]);
 
   const rows = useMemo(() => {
     const all = data?.laddersBySeason[season] ?? [];
@@ -52,14 +53,14 @@ export default function LadderView() {
           <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th><th>Home</th><th>Road</th><th>L10</th><th>Strk</th><th>Diff</th></tr></thead>
           <tbody>
             {rows.map((t, i) => {
-              const [c1] = clubColors(t.club);
+              const [c1] = clubColors(t.club, league);
               const gb = ((lead - t.w) + (t.l - (rows[0]?.l ?? 0))) / 2;
               const tone = i < cut.p ? "rgba(74,222,128,0.06)" : i < cut.pi ? "rgba(240,196,90,0.05)" : undefined;
               return (
                 <tr key={t.club} style={tone ? { background: tone } : undefined}>
                   <td style={{ color: i < cut.p ? "var(--accent-2)" : i < cut.pi ? "var(--gold)" : "var(--muted)", fontWeight: 700 }}>{i + 1}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
-                    <Link href={`/teams/${clubAbbr(t.club).toLowerCase()}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Link href={leagueHref(league, `/teams/${clubAbbr(t.club, league).toLowerCase()}`)} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <span style={{ width: 9, height: 9, borderRadius: 2, background: c1, flexShrink: 0 }} />
                       <span title={`${t.club}${t.div ? ` · ${t.div}` : ""}`}>{t.club}</span>
                     </Link>
@@ -82,7 +83,7 @@ export default function LadderView() {
         {conf === "All"
           ? "Filter by conference and division. "
           : "Per-conference: top 6 clinch a playoff berth (green); seeds 7–10 (gold) head to the play-in. "}
-        <Link href="/playoffs" style={{ color: "var(--accent)" }}>See the playoff bracket →</Link>
+        <Link href={leagueHref(league, "/playoffs")} style={{ color: "var(--accent)" }}>See the playoff bracket →</Link>
       </p>
     </div>
   );

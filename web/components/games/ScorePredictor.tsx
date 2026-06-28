@@ -11,8 +11,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
+import { gameKey } from "@/lib/games-data";
+import { dataPath, type LeagueId } from "@/lib/league";
 
-const GAME = "score-predictor";
 const ROUNDS = 10;
 const MAX_SCORE = ROUNDS * 5;
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -72,8 +73,8 @@ function scoreFixture(f: Fixture): number {
   return 0;
 }
 
-function Dot({ club }: { club: string }) {
-  const [primary, secondary] = clubColors(club);
+function Dot({ club, league = "nba" }: { club: string; league?: LeagueId }) {
+  const [primary, secondary] = clubColors(club, league);
   return (
     <span
       aria-hidden
@@ -151,7 +152,8 @@ function Stepper({
   );
 }
 
-export default function ScorePredictor() {
+export default function ScorePredictor({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("score-predictor", league);
   const [season, setSeason] = useState<string>("");
   const [pool, setPool] = useState<Match[]>([]);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
@@ -166,7 +168,7 @@ export default function ScorePredictor() {
     (async () => {
       try {
         const VER = process.env.NEXT_PUBLIC_DATA_VERSION ? `?v=${process.env.NEXT_PUBLIC_DATA_VERSION}` : "";
-        const res = await fetch(`${BASE}/data/results.json${VER}`, { cache: "force-cache" });
+        const res = await fetch(`${BASE}/data/${dataPath(league)}results.json${VER}`, { cache: "force-cache" });
         const data: ResultsData = await res.json();
         if (!alive) return;
         const s = data.seasons[0];
@@ -183,11 +185,11 @@ export default function ScorePredictor() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [league]);
 
   useEffect(() => {
     setBest(getScore(GAME).best);
-  }, []);
+  }, [GAME]);
 
   // (Re)build the 10 fixtures whenever the pool or seed changes.
   useEffect(() => {
@@ -238,7 +240,7 @@ export default function ScorePredictor() {
     recordScore(GAME, total);
     void submitScore(GAME, total);
     setBest(getScore(GAME).best);
-  }, [allLocked, submitted, total]);
+  }, [allLocked, submitted, total, GAME]);
 
   const playAgain = useCallback(() => setSeed(Date.now()), []);
 
@@ -365,7 +367,7 @@ export default function ScorePredictor() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <Dot club={f.home} />
+                  <Dot club={f.home} league={league} />
                   <span
                     style={{
                       color: "var(--text)",
@@ -386,7 +388,7 @@ export default function ScorePredictor() {
                 />
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <Dot club={f.away} />
+                  <Dot club={f.away} league={league} />
                   <span
                     style={{
                       color: "var(--text)",

@@ -1,9 +1,10 @@
 /**
- * NBA 82-0 data pipeline — 100% sourced from the public NBA Stats API.
+ * Basketball "X-0" data pipeline — 100% sourced from the public Stats API.
  * ---------------------------------------------------------------------------
- * Everything here is fetched from stats.nba.com/stats/* (the same JSON nba.com
- * reads) or derived from it. Nothing is hardcoded — no curated player lists, no
- * made-up numbers.
+ * One pipeline, two leagues. Pick with `LEAGUE=nba` (default) or `LEAGUE=wnba`.
+ * Everything is fetched from the league's stats.*.com/stats/* feed (the same
+ * JSON nba.com / wnba.com read) or derived from it. Nothing is hardcoded — no
+ * curated player lists, no made-up numbers.
  *
  *   playerindex (Historical)   every player ever: position, bio, draft, career
  *                              PTS/REB/AST, year span  → legends + positions
@@ -11,39 +12,64 @@
  *   leaguestandingsv3          real standings w/ conf/div/home/road/L10/streak
  *   leaguegamelog              real game results (recent seasons → schedule)
  *
- * leaguedashplayerstats only covers 1996-97 onward, so pre-1996 players come
- * from their real playerindex career line (career averages + real year span),
- * with per-season cards derived across their span. Real season data always wins.
+ * NBA: leaguedashplayerstats only covers 1996-97 onward, so pre-1996 players
+ * come from their real playerindex career line (cached in legends-raw.json).
+ * The WNBA's first season is 1997, so the season feed already spans its whole
+ * history and no legends pass is needed.
  *
- * Env: FROM_SEASON_END=1997  RATE_MS=2000  FIXTURE_SEASONS=4
+ * Season strings differ: NBA spans two calendar years ("2023-24"); the WNBA
+ * season fits one ("2024"). The whole pipeline keys off a numeric season "end"
+ * year and the per-league `seasonStr()` renders it.
  *
- * Outputs → web/public/data/: meta, pool, poolYears, games, playerSeasons,
- * results, strengths, playoffs (shot charts come from fetch-shots.mjs).
+ * Env: LEAGUE=nba|wnba  FROM_SEASON_END=<first season>  RATE_MS=2000  FIXTURE_SEASONS=4
+ *
+ * Outputs → web/public/data/<league-sub>/: meta, pool, poolYears, games,
+ * playerSeasons, results, strengths (shot charts come from fetch-shots.mjs).
  */
 import { writeFile, mkdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const HOST = "https://stats.nba.com/stats";
-const RATE_MS = Number(process.env.RATE_MS || 2000);
-const FROM_END = Number(process.env.FROM_SEASON_END || 1997);
-const FIXTURE_SEASONS = Number(process.env.FIXTURE_SEASONS || 4);
-// Seasons that get full per-game player box scores (lineups) → static match
-// pages. Bounded because each season = ~1,225 pre-rendered pages.
-const LINEUP_SEASONS = Number(process.env.LINEUP_SEASONS || 2);
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = join(__dirname, "..", "web", "public", "data");
+const LEAGUE = (process.env.LEAGUE || "nba").toLowerCase();
 
-const HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  Accept: "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9",
-  Referer: "https://www.nba.com/", Origin: "https://www.nba.com",
-  Connection: "keep-alive", "x-nba-stats-origin": "stats", "x-nba-stats-token": "true",
-  "Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-site",
-  "Cache-Control": "no-cache", Pragma: "no-cache",
+// ---- WNBA franchise maps ---------------------------------------------------
+// Stats tricode → continuing franchise (factual relocation lineage). The WNBA
+// has only two conferences and no divisions, so we set the "division" equal to
+// the conference. Defunct franchises with no continuing club are kept as
+// themselves (the WNBA's history is short and the Comets/Monarchs etc. matter),
+// unlike the NBA build which drops no-lineage teams.
+// NOTE: tricodes below are the WNBA's official 3-letter codes; if a team is
+// silently missing after a run, verify its TEAM_ABBREVIATION in the live
+// standings response and add it here.
+const WNBA_TEAM_NAME = {
+  ATL: "Atlanta Dream", CHI: "Chicago Sky", CON: "Connecticut Sun", DAL: "Dallas Wings",
+  GSV: "Golden State Valkyries", IND: "Indiana Fever", LVA: "Las Vegas Aces", LAS: "Los Angeles Sparks",
+  MIN: "Minnesota Lynx", NYL: "New York Liberty", PHO: "Phoenix Mercury", SEA: "Seattle Storm",
+  WAS: "Washington Mystics",
+  // common tricode variants
+  CONN: "Connecticut Sun", NY: "New York Liberty", LA: "Los Angeles Sparks", LV: "Las Vegas Aces",
+  PHX: "Phoenix Mercury", GS: "Golden State Valkyries", GSW: "Golden State Valkyries",
+  // relocation lineage → continuing franchise
+  UTA: "Las Vegas Aces", UTS: "Las Vegas Aces", SAS: "Las Vegas Aces", SAN: "Las Vegas Aces", SA: "Las Vegas Aces",
+  DET: "Dallas Wings", TUL: "Dallas Wings",
+  ORL: "Connecticut Sun",
+  // defunct, kept as themselves (no continuing franchise)
+  HOU: "Houston Comets", CLE: "Cleveland Rockers", CHA: "Charlotte Sting",
+  MIA: "Miami Sol", POR: "Portland Fire", SAC: "Sacramento Monarchs",
 };
-const TEAM_NAME = {
+const WNBA_TEAM_META = {
+  "Atlanta Dream": ["East", "East"], "Chicago Sky": ["East", "East"], "Connecticut Sun": ["East", "East"],
+  "Indiana Fever": ["East", "East"], "New York Liberty": ["East", "East"], "Washington Mystics": ["East", "East"],
+  "Dallas Wings": ["West", "West"], "Golden State Valkyries": ["West", "West"], "Las Vegas Aces": ["West", "West"],
+  "Los Angeles Sparks": ["West", "West"], "Minnesota Lynx": ["West", "West"], "Phoenix Mercury": ["West", "West"],
+  "Seattle Storm": ["West", "West"],
+  // defunct
+  "Houston Comets": ["West", "West"], "Cleveland Rockers": ["East", "East"], "Charlotte Sting": ["East", "East"],
+  "Miami Sol": ["East", "East"], "Portland Fire": ["West", "West"], "Sacramento Monarchs": ["West", "West"],
+};
+
+const NBA_TEAM_NAME = {
   ATL: "Atlanta Hawks", BOS: "Boston Celtics", BKN: "Brooklyn Nets", CHA: "Charlotte Hornets",
   CHI: "Chicago Bulls", CLE: "Cleveland Cavaliers", DAL: "Dallas Mavericks", DEN: "Denver Nuggets",
   DET: "Detroit Pistons", GSW: "Golden State Warriors", HOU: "Houston Rockets", IND: "Indiana Pacers",
@@ -64,7 +90,7 @@ const TEAM_NAME = {
   PHW: "Golden State Warriors", SFW: "Golden State Warriors", GOS: "Golden State Warriors",
   DN: "Denver Nuggets",
 };
-const TEAM_META = {
+const NBA_TEAM_META = {
   "Atlanta Hawks": ["East", "Southeast"], "Boston Celtics": ["East", "Atlantic"], "Brooklyn Nets": ["East", "Atlantic"],
   "Charlotte Hornets": ["East", "Southeast"], "Chicago Bulls": ["East", "Central"], "Cleveland Cavaliers": ["East", "Central"],
   "Detroit Pistons": ["East", "Central"], "Indiana Pacers": ["East", "Central"], "Miami Heat": ["East", "Southeast"],
@@ -77,10 +103,54 @@ const TEAM_META = {
   "Sacramento Kings": ["West", "Pacific"], "San Antonio Spurs": ["West", "Southwest"], "Utah Jazz": ["West", "Northwest"],
   "Seattle SuperSonics": ["West", "Northwest"], "New Jersey Nets": ["East", "Atlantic"],
 };
+
+// ---- per-league configuration ----------------------------------------------
+const LEAGUES = {
+  nba: {
+    host: "https://stats.nba.com/stats", site: "https://www.nba.com", leagueId: "00",
+    fromEnd: 1997, useLegends: true, gamesPerRound: 40, outSub: "", dropUnmapped: true,
+    seasonStr: (end) => `${end - 1}-${String(end).slice(2)}`,
+    latestEnd: (m, y) => (m >= 10 ? y + 1 : y),          // NBA season tips off in October
+    playoffsActive: (m) => m >= 4 && m <= 7,
+    teamName: NBA_TEAM_NAME, teamMeta: NBA_TEAM_META,
+  },
+  wnba: {
+    host: "https://stats.wnba.com/stats", site: "https://www.wnba.com", leagueId: "10",
+    fromEnd: 1997, useLegends: false, gamesPerRound: 6, outSub: "wnba", dropUnmapped: false,
+    seasonStr: (end) => String(end),                      // WNBA season = one calendar year
+    latestEnd: (m, y) => (m >= 5 ? y : y - 1),           // WNBA season runs ~May–Oct
+    playoffsActive: (m) => m >= 9 && m <= 10,
+    teamName: WNBA_TEAM_NAME, teamMeta: WNBA_TEAM_META,
+  },
+};
+const cfg = LEAGUES[LEAGUE];
+if (!cfg) throw new Error(`unknown LEAGUE "${LEAGUE}" — use nba or wnba`);
+
+const HOST = cfg.host;
+const RATE_MS = Number(process.env.RATE_MS || 2000);
+const FROM_END = Number(process.env.FROM_SEASON_END || cfg.fromEnd);
+const FIXTURE_SEASONS = Number(process.env.FIXTURE_SEASONS || 4);
+// Seasons that get full per-game player box scores (lineups) → static match
+// pages. Bounded because each season = ~1,225 pre-rendered pages (NBA).
+const LINEUP_SEASONS = Number(process.env.LINEUP_SEASONS || 2);
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const OUT_DIR = join(__dirname, "..", "web", "public", "data", cfg.outSub);
+
+const HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9",
+  Referer: `${cfg.site}/`, Origin: cfg.site,
+  Connection: "keep-alive", "x-nba-stats-origin": "stats", "x-nba-stats-token": "true",
+  "Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-site",
+  "Cache-Control": "no-cache", Pragma: "no-cache",
+};
+const TEAM_NAME = cfg.teamName;
+const TEAM_META = cfg.teamMeta;
+const LEAGUE_ID = cfg.leagueId;
 const POS_CODE_LABEL = { PG: "Point Guard", SG: "Shooting Guard", SF: "Small Forward", PF: "Power Forward", C: "Center" };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const seasonStr = (end) => `${end - 1}-${String(end).slice(2)}`;
+const seasonStr = cfg.seasonStr;
 const decadeOf = (end) => `${Math.floor((end - 1) / 10) * 10}s`;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const r1 = (x) => +(+x || 0).toFixed(1);
@@ -133,15 +203,15 @@ function posFromIndex(broad, s) {
 async function main() {
   const t0 = Date.now();
   const month = new Date().getUTCMonth() + 1, yr = new Date().getUTCFullYear();
-  const latestEnd = month >= 10 ? yr + 1 : yr;
+  const latestEnd = cfg.latestEnd(month, yr);
   const ends = []; for (let e = latestEnd; e >= FROM_END; e--) ends.push(e);
-  const playoffsActive = month >= 4 && month <= 7;
+  const playoffsActive = cfg.playoffsActive(month);
 
   /* ---- playerindex: positions + bio + career line for every player ------ */
   console.log("→ playerindex (all players, historical)…");
   const posByPid = {}, bioByPid = {}, indexRows = [];
   try {
-    const pi = await statsCall("playerindex", { LeagueID: "00", Season: seasonStr(latestEnd), Historical: "1" });
+    const pi = await statsCall("playerindex", { LeagueID: LEAGUE_ID, Season: seasonStr(latestEnd), Historical: "1" });
     for (const r of rows(pi, "PlayerIndex")) {
       posByPid[r.PERSON_ID] = r.POSITION;
       bioByPid[r.PERSON_ID] = {
@@ -163,9 +233,10 @@ async function main() {
   const yearCards = [];
   const standingsBySeason = {}, resultsBySeason = {}, seasonsDone = [];
   const gameBox = {}; const lineupSeasons = [];
+  const unmappedAbbr = new Set(); // tricodes seen in the feed but absent from TEAM_NAME
   const dashParams = (season, mt) => ({
     College: "", Conference: "", Country: "", DateFrom: "", DateTo: "", Division: "", DraftPick: "", DraftYear: "",
-    GameScope: "", GameSegment: "", Height: "", LastNGames: "0", LeagueID: "00", Location: "", MeasureType: mt,
+    GameScope: "", GameSegment: "", Height: "", LastNGames: "0", LeagueID: LEAGUE_ID, Location: "", MeasureType: mt,
     Month: "0", OpponentTeamID: "0", Outcome: "", PORound: "0", PaceAdjust: "N", PerMode: "PerGame", Period: "0",
     PlayerExperience: "", PlayerPosition: "", PlusMinus: "N", Rank: "N", Season: season, SeasonSegment: "",
     SeasonType: "Regular Season", ShotClockRange: "", StarterBench: "", TeamID: "0", VsConference: "", VsDivision: "", Weight: "",
@@ -186,7 +257,16 @@ async function main() {
     let n = 0;
     for (const r of rows(base, "LeagueDashPlayerStats")) {
       const gp = Number(r.GP) || 0; if (gp < 8) continue;
-      const club = TEAM_NAME[r.TEAM_ABBREVIATION]; if (!club) continue;
+      // Map tricode → franchise. For the NBA we deliberately drop unmapped
+      // (defunct, no-lineage) teams; for the WNBA we keep them under the raw
+      // tricode and warn, so a missing/changed tricode never silently loses a
+      // whole team's players — the warning tells you exactly what to add.
+      let club = TEAM_NAME[r.TEAM_ABBREVIATION];
+      if (!club) {
+        if (cfg.dropUnmapped) continue;
+        club = r.TEAM_ABBREVIATION;
+        unmappedAbbr.add(r.TEAM_ABBREVIATION);
+      }
       const a = advBy[r.PLAYER_ID] || {};
       const s = {
         pts: r1(r.PTS), reb: r1(r.REB), ast: r1(r.AST), stl: r1(r.STL), blk: r1(r.BLK), fg3: r1(r.FG3M),
@@ -197,12 +277,12 @@ async function main() {
       const rt = rate(s.pts, s.reb, s.ast, s.stl, s.blk, s.fg3);
       if (s.mpg < 12 && rt < 73) continue;
       const { pos, elig } = posFromIndex(posByPid[r.PLAYER_ID], s);
-      yearCards.push({ id: `nba-${r.PLAYER_ID}-${end}`, pid: Number(r.PLAYER_ID), name: r.PLAYER_NAME, club, era: season, year: end, decade: decadeOf(end), pos, posName: POS_CODE_LABEL[pos], elig, rating: rt, g: gp, ...s });
+      yearCards.push({ id: `${LEAGUE}-${r.PLAYER_ID}-${end}`, pid: Number(r.PLAYER_ID), name: r.PLAYER_NAME, club, era: season, year: end, decade: decadeOf(end), pos, posName: POS_CODE_LABEL[pos], elig, rating: rt, g: gp, ...s });
       n++;
     }
 
     try {
-      const st = await statsCall("leaguestandingsv3", { LeagueID: "00", Season: season, SeasonType: "Regular Season" });
+      const st = await statsCall("leaguestandingsv3", { LeagueID: LEAGUE_ID, Season: season, SeasonType: "Regular Season" });
       const table = [];
       for (const r of rows(st, "Standings")) {
         const club = `${r.TeamCity} ${r.TeamName}`.trim();
@@ -227,7 +307,7 @@ async function main() {
   for (let si = 0; si < fixSeasons.length; si++) {
     const season = fixSeasons[si];
     try {
-      const gl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "T", Counter: "1230", Sorter: "DATE", Direction: "ASC" });
+      const gl = await statsCall("leaguegamelog", { LeagueID: LEAGUE_ID, Season: season, SeasonType: "Regular Season", PlayerOrTeam: "T", Counter: "1230", Sorter: "DATE", Direction: "ASC" });
       const byGame = new Map();
       for (const r of rows(gl, "LeagueGameLog")) {
         const e = byGame.get(r.GAME_ID) || { date: r.GAME_DATE }; const home = !String(r.MATCHUP || "").includes("@");
@@ -242,7 +322,7 @@ async function main() {
       const games = []; let gi = 0;
       for (const [gid, g] of byGame.entries()) {
         if (!g.home || !g.away) continue;
-        games.push({ id: gid, date: g.date, round: Math.floor(gi / 40) + 1, home: g.home.name, away: g.away.name, hs: g.home.pts, as: g.away.pts, box: { home: g.home, away: g.away } });
+        games.push({ id: gid, date: g.date, round: Math.floor(gi / cfg.gamesPerRound) + 1, home: g.home.name, away: g.away.name, hs: g.home.pts, as: g.away.pts, box: { home: g.home, away: g.away } });
         gi++;
       }
       if (games.length) resultsBySeason[season] = games;
@@ -250,7 +330,7 @@ async function main() {
 
       /* per-game player lineups for the most recent seasons → static match pages */
       if (si < LINEUP_SEASONS) {
-        const pl = await statsCall("leaguegamelog", { LeagueID: "00", Season: season, SeasonType: "Regular Season", PlayerOrTeam: "P", Counter: "30000", Sorter: "DATE", Direction: "ASC" });
+        const pl = await statsCall("leaguegamelog", { LeagueID: LEAGUE_ID, Season: season, SeasonType: "Regular Season", PlayerOrTeam: "P", Counter: "30000", Sorter: "DATE", Direction: "ASC" });
         const players = new Map(); // gid -> { home:[], away:[] }
         for (const r of rows(pl, "LeagueGameLog")) {
           const gid = r.GAME_ID; const g = byGame.get(gid); if (!g || !g.home || !g.away) continue;
@@ -284,8 +364,10 @@ async function main() {
          by fetch-legends.mjs (the season feed only covers 1996-97 on). Each is
          a real season on the real team — no synthesis. ------------------------ */
   let legendRows = {};
-  try { legendRows = JSON.parse(readFileSync(join(__dirname, "legends-raw.json"), "utf8")); }
-  catch { console.log("  ! legends-raw.json missing — run `npm run legends` first"); }
+  if (cfg.useLegends) {
+    try { legendRows = JSON.parse(readFileSync(join(__dirname, "legends-raw.json"), "utf8")); }
+    catch { console.log("  ! legends-raw.json missing — run `npm run legends` first"); }
+  }
   let added = 0, legSeasons = 0;
   for (const L of Object.values(legendRows)) {
     let any = false;
@@ -404,6 +486,11 @@ async function main() {
   // pipeline/fetch-playoffs.mjs from the real playoff game logs — this script
   // deliberately does NOT write them, so a committed real bracket is never
   // clobbered by a placeholder. Run `npm run playoffs` after this.
+
+  if (unmappedAbbr.size) {
+    console.warn(`  ⚠ ${unmappedAbbr.size} unmapped tricode(s) kept under the raw code: ${[...unmappedAbbr].sort().join(", ")}`);
+    console.warn(`    Add them to ${LEAGUE.toUpperCase()}_TEAM_NAME/${LEAGUE.toUpperCase()}_TEAM_META in build-data.mjs to merge them into the right franchise.`);
+  }
 
   /* ---- write ------------------------------------------------------------ */
   await mkdir(OUT_DIR, { recursive: true });

@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadGamesData, type GamePlayer } from "@/lib/games-data";
+import { loadGamesData, gameKey, type GamePlayer } from "@/lib/games-data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { slugify } from "@/lib/format";
+import { getLeague, type LeagueId } from "@/lib/league";
 
-const GAME = "beat-the-clock";
 const TARGET_COUNT = 30;
 const DURATION = 60;
 
@@ -24,7 +24,9 @@ function fmtTime(secs: number): string {
   return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
-export default function BeatTheClock() {
+export default function BeatTheClock({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("beat-the-clock", league);
+  const lg = getLeague(league);
   const [targets, setTargets] = useState<Target[]>([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -41,7 +43,7 @@ export default function BeatTheClock() {
   // Load the dataset and compute the top-30 try-scorers once.
   useEffect(() => {
     let alive = true;
-    loadGamesData()
+    loadGamesData(league)
       .then((data) => {
         if (!alive) return;
         const top = [...data.players]
@@ -58,7 +60,8 @@ export default function BeatTheClock() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league, GAME]);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current !== null) {
@@ -79,7 +82,7 @@ export default function BeatTheClock() {
       setBest((b) => Math.max(b, n));
       void submitScore(GAME, n);
     },
-    [clearTimer]
+    [clearTimer, GAME]
   );
 
   const start = useCallback(() => {
@@ -161,7 +164,7 @@ export default function BeatTheClock() {
       <header style={styles.header}>
         <div>
           <h2 style={styles.title}>Beat the Clock</h2>
-          <p style={styles.sub}>Name the all-time NBA try-scorers</p>
+          <p style={styles.sub}>Name the all-time {lg.short} scoring leaders</p>
         </div>
         {phase === "playing" || phase === "over" ? (
           <div style={styles.scoreboard}>

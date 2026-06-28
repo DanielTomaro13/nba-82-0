@@ -10,6 +10,8 @@ import { simulateSeason, type SimResult } from "@/lib/sim";
 import { POS_CODES, POS_LABEL } from "@/lib/format";
 import { clubColors } from "@/lib/clubs";
 import { submitScore } from "@/lib/leaderboard";
+import { gameKey } from "@/lib/games-data";
+import type { LeagueId } from "@/lib/league";
 import { getName, setName } from "@/lib/progress";
 import { tick, settle } from "@/lib/sound";
 import Confetti from "@/components/Confetti";
@@ -19,7 +21,7 @@ import { AD_SLOTS } from "@/lib/ads";
 const rnd = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 const SLOTS = POS_CODES.map((c, i) => ({ code: c, n: i + 1 }));
 
-export default function InvinciblesGame() {
+export default function InvinciblesGame({ league = "nba" }: { league?: LeagueId } = {}) {
   const [pool, setPool] = useState<PoolPlayer[] | null>(null);
   const [strengths, setStrengths] = useState<Record<string, number[]>>({});
   const [squad, setSquad] = useState<(PoolPlayer | null)[]>(SLOTS.map(() => null));
@@ -31,9 +33,9 @@ export default function InvinciblesGame() {
   const spinRef = useRef(false);
 
   useEffect(() => {
-    Promise.all([loadPool(), loadStrengths()]).then(([p, s]) => { setPool(p); setStrengths(s.bySeason); });
+    Promise.all([loadPool(league), loadStrengths(league)]).then(([p, s]) => { setPool(p); setStrengths(s.bySeason); });
     setNm(getName());
-  }, []);
+  }, [league]);
 
   const undrafted = useCallback((p: PoolPlayer) => !squad.some((s) => s && s.id === p.id), [squad]);
   const candidates = useMemo(() => {
@@ -82,7 +84,7 @@ export default function InvinciblesGame() {
   }
   function save() {
     if (name.trim()) setName(name.trim());
-    submitScore("invincibles", result ? result.wins : 0, true);
+    submitScore(gameKey("invincibles", league), result ? result.wins : 0, true);
     setSaved(true);
   }
 
@@ -177,7 +179,7 @@ export default function InvinciblesGame() {
         <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {SLOTS.map((s, i) => {
             const p = squad[i];
-            const [c1] = p ? clubColors(p.club) : ["var(--border)"];
+            const [c1] = p ? clubColors(p.club, league) : ["var(--border)"];
             return (
               <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 2px", borderBottom: "1px solid var(--border)", fontSize: ".84rem" }}>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: ".6rem", color: "var(--muted)", minWidth: 22 }}>{s.code}</span>

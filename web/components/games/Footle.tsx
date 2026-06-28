@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadGamesData, dailySeed, rng, dayNumber, type GamePlayer } from "@/lib/games-data";
+import { loadGamesData, dailySeed, rng, dayNumber, gameKey, type GamePlayer } from "@/lib/games-data";
 import { recordDaily, todaysResult } from "@/lib/progress";
+import { getLeague, leagueHref, type LeagueId } from "@/lib/league";
 import DailyStatsPanel from "@/components/games/DailyStats";
 import Confetti from "@/components/Confetti";
 
-const GAME = "footle";
 const MAX = 8;
 
 const HEADERS = ["Pos", "Team", "Era", "PPG", "Games"] as const;
@@ -59,7 +59,9 @@ function buildCells(guess: GamePlayer, target: GamePlayer): Cell[] {
 
 const emojiOf: Record<Verdict, string> = { hit: "🟩", near: "🟨", miss: "⬛" };
 
-export default function Hoople() {
+export default function Hoople({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("footle", league);
+  const lg = getLeague(league);
   const [pool, setPool] = useState<GamePlayer[]>([]);
   const [target, setTarget] = useState<GamePlayer | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -70,12 +72,12 @@ export default function Hoople() {
 
   useEffect(() => {
     let alive = true;
-    loadGamesData().then((data) => {
+    loadGamesData(league).then((data) => {
       if (!alive) return;
       const byFame = [...data.players].sort((a, b) => b.fame - a.fame);
       const famous = byFame.filter((p) => p.fame > 40);
       const base = (famous.length >= 1 ? famous : byFame).slice(0, 250);
-      const t = base[Math.floor(rng(dailySeed("footle"))() * base.length)];
+      const t = base[Math.floor(rng(dailySeed("footle", league))() * base.length)];
       setPool(base);
       setTarget(t ?? null);
 
@@ -91,7 +93,8 @@ export default function Hoople() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league]);
 
   const guessedIds = useMemo(() => new Set(rows.map((r) => r.player.id)), [rows]);
 
@@ -124,12 +127,12 @@ export default function Hoople() {
   const won = status === "won";
 
   const shareText = useMemo(() => {
-    const head = `NBA Hoople #${dayNumber()} ${won ? `${rows.length}/8` : `X/8`}\n`;
+    const head = `${lg.short} Hoople #${dayNumber()} ${won ? `${rows.length}/8` : `X/8`}\n`;
     const grid = rows
       .map((r) => r.cells.map((c) => emojiOf[c.verdict]).join(""))
       .join("\n");
-    return `${head}${grid}\nnba82-0.com/games/footle`;
-  }, [won, rows]);
+    return `${head}${grid}\nnba82-0.com${leagueHref(league, "/games/footle")}`;
+  }, [won, rows, lg.short, league]);
 
   return (
     <div style={{ display: "grid", gap: 14, maxWidth: 640, margin: "0 auto" }}>
@@ -330,7 +333,7 @@ export default function Hoople() {
 
           {freshWin && won && <Confetti />}
 
-          {finished && <DailyStatsPanel game="footle" shareText={shareText} />}
+          {finished && <DailyStatsPanel game={GAME} shareText={shareText} />}
         </>
       )}
     </div>

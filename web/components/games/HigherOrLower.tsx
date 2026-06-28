@@ -5,13 +5,13 @@ import {
   loadGamesData,
   rng,
   pickN,
+  gameKey,
   type GamePlayer,
 } from "@/lib/games-data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
-
-const GAME = "higher-or-lower";
+import type { LeagueId } from "@/lib/league";
 
 type StatKey = "pts" | "reb" | "ast" | "apps";
 interface Stat {
@@ -39,7 +39,8 @@ interface Round {
   stat: Stat;
 }
 
-export default function HigherOrLower() {
+export default function HigherOrLower({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("higher-or-lower", league);
   const poolRef = useRef<GamePlayer[]>([]);
   const randRef = useRef<() => number>(() => Math.random());
 
@@ -104,7 +105,7 @@ export default function HigherOrLower() {
     let alive = true;
     (async () => {
       try {
-        const data = await loadGamesData();
+        const data = await loadGamesData(league);
         if (!alive) return;
         const famous = data.players.filter((p) => p.fame > 30);
         poolRef.current = famous.length >= 2 ? famous : data.players;
@@ -120,7 +121,8 @@ export default function HigherOrLower() {
     return () => {
       alive = false;
     };
-  }, [startRun]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRun, league, GAME]);
 
   const endRun = useCallback(
     (finalStreak: number) => {
@@ -130,7 +132,7 @@ export default function HigherOrLower() {
       // Fire-and-forget; never block the UI on the network.
       void submitScore(GAME, finalStreak, true).catch(() => {});
     },
-    []
+    [GAME]
   );
 
   const answer = useCallback(
@@ -217,6 +219,7 @@ export default function HigherOrLower() {
               statLabel={round.stat.label}
               shown
               tone="known"
+              league={league}
             />
 
             {/* RIGHT — challenger */}
@@ -228,6 +231,7 @@ export default function HigherOrLower() {
               shown={reveal !== null}
               reveal={reveal}
               tone="challenger"
+              league={league}
             />
           </div>
 
@@ -279,6 +283,7 @@ function PlayerCard({
   shown,
   reveal,
   tone,
+  league = "nba",
 }: {
   player: GamePlayer;
   statKey: StatKey;
@@ -286,8 +291,9 @@ function PlayerCard({
   shown: boolean;
   reveal?: { correct: boolean; value: number } | null;
   tone: "known" | "challenger";
+  league?: LeagueId;
 }) {
-  const [primary, secondary] = clubColors(player.club);
+  const [primary, secondary] = clubColors(player.club, league);
   const value = player[statKey];
 
   let valueColor = "var(--text)";

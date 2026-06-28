@@ -58,21 +58,35 @@ export interface GamesData {
   strengthsBySeason: Record<string, number[]>;
 }
 
+import { dataPath, type LeagueId } from "@/lib/league";
+
 const VER = process.env.NEXT_PUBLIC_DATA_VERSION ? `?v=${process.env.NEXT_PUBLIC_DATA_VERSION}` : "";
-let _cache: GamesData | null = null;
-export async function loadGamesData(): Promise<GamesData> {
-  if (_cache) return _cache;
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/games.json${VER}`, {
-    cache: "force-cache",
-  });
-  _cache = await res.json();
-  return _cache!;
+const _cache = new Map<LeagueId, GamesData>();
+
+/**
+ * Load the mini-games dataset for a league. NBA reads /data/games.json
+ * (unchanged); WNBA reads /data/wnba/games.json. Cached per league.
+ */
+export async function loadGamesData(league: LeagueId = "nba"): Promise<GamesData> {
+  const hit = _cache.get(league);
+  if (hit) return hit;
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/${dataPath(league)}games.json${VER}`,
+    { cache: "force-cache" },
+  );
+  const data = (await res.json()) as GamesData;
+  _cache.set(league, data);
+  return data;
 }
 
-/** Deterministic daily seed so "today's" puzzles are the same for everyone. */
-export function dailySeed(salt = ""): number {
+/**
+ * Deterministic daily seed so "today's" puzzles are the same for everyone.
+ * The optional `league` keeps NBA and WNBA daily instances independent.
+ */
+export function dailySeed(salt = "", league: LeagueId = "nba"): number {
   const d = new Date();
-  const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${salt}`;
+  const lg = league === "nba" ? "" : `-${league}`;
+  const key = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}-${salt}${lg}`;
   let h = 2166136261;
   for (let i = 0; i < key.length; i++) {
     h ^= key.charCodeAt(i);
@@ -83,6 +97,15 @@ export function dailySeed(salt = ""): number {
 
 export const dayNumber = () =>
   Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / 86400000) + 1;
+
+/**
+ * Namespace a game's storage/leaderboard key by league so NBA and WNBA boards,
+ * streaks and daily results never collide. NBA keeps the bare slug (unchanged);
+ * WNBA gets a "wnba-" prefix, e.g. "wnba-footle".
+ */
+export function gameKey(slug: string, league: LeagueId = "nba"): string {
+  return league === "nba" ? slug : `${league}-${slug}`;
+}
 
 /** Mulberry32 seeded PRNG. */
 export function rng(seed: number): () => number {

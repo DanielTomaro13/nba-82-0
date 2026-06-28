@@ -4,13 +4,12 @@ import { loadPlayoffsBySeason, type Playoffs } from "@/lib/data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
-
-const GAME = "bracket-challenge";
+import { gameKey } from "@/lib/games-data";
+import { getLeague, type LeagueId } from "@/lib/league";
 
 // Bracket seeding order within a conference (1v8, 4v5, 3v6, 2v7).
 const SEED_ORDER = [1, 8, 4, 5, 3, 6, 2, 7];
 const ROUND_POINTS = [1, 2, 3, 5]; // R1, Conf Semis, Conf Finals, Finals
-const ROUND_LABEL = ["First Round", "Conference Semifinals", "Conference Finals", "NBA Finals"];
 
 interface Slot { id: string; round: number; conf: "East" | "West" | "Finals"; a: string | null; b: string | null }
 
@@ -38,7 +37,9 @@ function realWinnersByRound(po: Playoffs): Set<string>[] {
   return [0, 1, 2, 3].map((r) => new Set((po.rounds?.[r]?.series ?? []).map((s) => s.winner)));
 }
 
-export default function BracketChallenge() {
+export default function BracketChallenge({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("bracket-challenge", league);
+  const ROUND_LABEL = ["First Round", "Conference Semifinals", "Conference Finals", `${getLeague(league).short} Finals`];
   const [all, setAll] = useState<Record<string, Playoffs> | null>(null);
   const [season, setSeason] = useState<string>("");
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -46,7 +47,7 @@ export default function BracketChallenge() {
   const [best, setBest] = useState(0);
 
   useEffect(() => {
-    loadPlayoffsBySeason().then((data) => {
+    loadPlayoffsBySeason(league).then((data) => {
       // Only fully-formed brackets: 4 rounds and 8 seeds per conference.
       const ok: Record<string, Playoffs> = {};
       for (const [s, b] of Object.entries(data)) {
@@ -58,8 +59,9 @@ export default function BracketChallenge() {
       // Deterministic "random" season from the day, so it's shareable.
       const idx = Math.floor((Date.now() / 86400000)) % (seasons.length || 1);
       setSeason(seasons[idx] || seasons[0] || "");
-    });
-  }, []);
+    }).catch(() => { setAll({}); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league, GAME]);
 
   const po = all && season ? all[season] : null;
   const slots = useMemo(() => (po ? buildSlots(po, picks) : []), [po, picks]);
@@ -95,7 +97,7 @@ export default function BracketChallenge() {
   const renderRound = (conf: "East" | "West", round: number) => (
     <div style={{ display: "grid", gap: 8 }}>
       <div style={{ fontSize: ".68rem", textTransform: "uppercase", letterSpacing: ".06em", color: "var(--muted)" }}>{conf} · {ROUND_LABEL[round]}</div>
-      {slots.filter((s) => s.conf === conf && s.round === round).map((s) => <SeriesPick key={s.id} slot={s} picked={picks[s.id]} submitted={submitted} real={real} onPick={pick} />)}
+      {slots.filter((s) => s.conf === conf && s.round === round).map((s) => <SeriesPick key={s.id} slot={s} picked={picks[s.id]} submitted={submitted} real={real} onPick={pick} league={league} />)}
     </div>
   );
 
@@ -125,7 +127,7 @@ export default function BracketChallenge() {
 
       <div style={{ display: "grid", gap: 8 }}>
         <div style={{ fontSize: ".68rem", textTransform: "uppercase", letterSpacing: ".06em", color: "var(--gold)", textAlign: "center" }}>{ROUND_LABEL[3]}</div>
-        {slots.filter((s) => s.conf === "Finals").map((s) => <SeriesPick key={s.id} slot={s} picked={picks[s.id]} submitted={submitted} real={real} onPick={pick} />)}
+        {slots.filter((s) => s.conf === "Finals").map((s) => <SeriesPick key={s.id} slot={s} picked={picks[s.id]} submitted={submitted} real={real} onPick={pick} league={league} />)}
       </div>
 
       {!submitted && (
@@ -137,8 +139,8 @@ export default function BracketChallenge() {
   );
 }
 
-function SeriesPick({ slot, picked, submitted, real, onPick }: {
-  slot: Slot; picked?: string; submitted: boolean; real: Set<string>[]; onPick: (s: Slot, team: string) => void;
+function SeriesPick({ slot, picked, submitted, real, onPick, league = "nba" }: {
+  slot: Slot; picked?: string; submitted: boolean; real: Set<string>[]; onPick: (s: Slot, team: string) => void; league?: LeagueId;
 }) {
   const ready = Boolean(slot.a && slot.b);
   return (
@@ -147,7 +149,7 @@ function SeriesPick({ slot, picked, submitted, real, onPick }: {
         const chosen = picked && team === picked;
         const realWin = submitted && team ? real[slot.round].has(team) : false;
         const wrongPick = submitted && chosen && !realWin;
-        const [c1] = team ? clubColors(team) : ["var(--muted)"];
+        const [c1] = team ? clubColors(team, league) : ["var(--muted)"];
         return (
           <button key={i} disabled={!ready || submitted || !team} onClick={() => team && onPick(slot, team)}
             style={{

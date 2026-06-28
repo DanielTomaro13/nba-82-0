@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadGamesData, rng, pickN, type GamePlayer } from "@/lib/games-data";
+import { loadGamesData, rng, pickN, gameKey, type GamePlayer } from "@/lib/games-data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
+import type { LeagueId } from "@/lib/league";
 
 interface Round {
   target: GamePlayer;
@@ -47,7 +48,8 @@ function buildRound(pool: GamePlayer[], rand: () => number): Round | null {
   return { target, options };
 }
 
-export default function CareerPath() {
+export default function CareerPath({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("career-path", league);
   const [phase, setPhase] = useState<Phase>("loading");
   const [pool, setPool] = useState<GamePlayer[]>([]);
   const [round, setRound] = useState<Round | null>(null);
@@ -68,8 +70,8 @@ export default function CareerPath() {
   useEffect(() => {
     let alive = true;
     randRef.current = rng(Date.now());
-    setBest(getScore("career-path").best);
-    loadGamesData()
+    setBest(getScore(GAME).best);
+    loadGamesData(league)
       .then((data) => {
         if (!alive) return;
         const famous = data.players.filter((p) => p.fame > 30);
@@ -91,14 +93,15 @@ export default function CareerPath() {
       alive = false;
       if (advanceTimer.current) clearTimeout(advanceTimer.current);
     };
-  }, [nextRound]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextRound, league, GAME]);
 
   const endRun = useCallback((finalScore: number) => {
-    recordScore("career-path", finalScore);
-    void submitScore("career-path", finalScore);
-    setBest(getScore("career-path").best);
+    recordScore(GAME, finalScore);
+    void submitScore(GAME, finalScore);
+    setBest(getScore(GAME).best);
     setPhase("over");
-  }, []);
+  }, [GAME]);
 
   const onPick = useCallback(
     (player: GamePlayer) => {
@@ -132,7 +135,7 @@ export default function CareerPath() {
   }, [pool, nextRound]);
 
   const target = round?.target;
-  const dotColor = target ? clubColors(target.club)[0] : "var(--muted)";
+  const dotColor = target ? clubColors(target.club, league)[0] : "var(--muted)";
   const correctId = round?.target.id ?? null;
 
   return (

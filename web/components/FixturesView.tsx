@@ -3,15 +3,16 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { loadResults, type Results, type MatchResult, type TeamBox } from "@/lib/data";
 import { clubColors } from "@/lib/clubs";
+import { leagueHref, type LeagueId } from "@/lib/league";
 
 const sel: React.CSSProperties = { padding: ".4rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" };
 
-export default function FixturesView() {
+export default function FixturesView({ league = "nba" }: { league?: LeagueId }) {
   const [data, setData] = useState<Results | null>(null);
   const [season, setSeason] = useState("");
   const [week, setWeek] = useState<string>("");
   const [open, setOpen] = useState<MatchResult | null>(null);
-  useEffect(() => { loadResults().then((r) => { setData(r); setSeason(r.seasons[0]); }); }, []);
+  useEffect(() => { loadResults(league).then((r) => { setData(r); setSeason(r.seasons[0]); }).catch(() => {}); }, [league]);
   // Close the box-score modal on Escape.
   useEffect(() => {
     if (!open) return;
@@ -55,17 +56,17 @@ export default function FixturesView() {
             {rd ? `Week ${rd}` : "Other"}
           </div>
           <div className="grid-cards">
-            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} onOpen={setOpen} linkTo={hasPage && m.id ? `/match/${m.id}` : undefined} />)}
+            {byRound.get(rd)!.map((m, i) => <MatchCard key={i} m={m} league={league} onOpen={setOpen} linkTo={hasPage && m.id ? leagueHref(league, `/match/${m.id}`) : undefined} />)}
           </div>
         </div>
       ))}
-      {open && <BoxScoreModal m={open} onClose={() => setOpen(null)} />}
+      {open && <BoxScoreModal m={open} league={league} onClose={() => setOpen(null)} />}
     </div>
   );
 }
 
-function MatchCard({ m, onOpen, linkTo }: { m: MatchResult; onOpen: (m: MatchResult) => void; linkTo?: string }) {
-  const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
+function MatchCard({ m, onOpen, linkTo, league = "nba" }: { m: MatchResult; onOpen: (m: MatchResult) => void; linkTo?: string; league?: LeagueId }) {
+  const [h1] = clubColors(m.home, league), [a1] = clubColors(m.away, league);
   const homeWin = m.hs > m.as, awayWin = m.as > m.hs;
   const hasBox = Boolean(m.box);
   const cardStyle: React.CSSProperties = { padding: ".8rem 1rem", display: "grid", gap: 6 };
@@ -101,8 +102,8 @@ const cell = (b: TeamBox, r: { key: keyof TeamBox; att?: keyof TeamBox }) => {
   return b[r.key] as number;
 };
 
-function BoxScoreModal({ m, onClose }: { m: MatchResult; onClose: () => void }) {
-  const b = m.box!; const [h1] = clubColors(m.home), [a1] = clubColors(m.away);
+function BoxScoreModal({ m, onClose, league = "nba" }: { m: MatchResult; onClose: () => void; league?: LeagueId }) {
+  const b = m.box!; const [h1] = clubColors(m.home, league), [a1] = clubColors(m.away, league);
   return (
     <div onClick={onClose} role="dialog" aria-modal="true" aria-label={`${m.away} at ${m.home} box score`} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.66)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: "max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))" }}>
       <div onClick={(e) => e.stopPropagation()} className="card" style={{ padding: "1.1rem", maxWidth: 460, width: "100%", maxHeight: "88vh", overflowY: "auto" }}>

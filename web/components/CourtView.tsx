@@ -1,6 +1,7 @@
 "use client";
 import { clubColors } from "@/lib/clubs";
 import { effectiveRating, type PoolPlayer, type Slot } from "@/lib/types";
+import type { LeagueId } from "@/lib/league";
 
 /** On-court coordinates (% of the court box) for each starting position. */
 const SPOT: Record<string, { x: number; y: number }> = {
@@ -11,8 +12,8 @@ const SPOT: Record<string, { x: number; y: number }> = {
   PG: { x: 50, y: 76 },
 };
 
-function Node({ code, p, onRemove, done }: { code: string; p: PoolPlayer | null; onRemove?: () => void; done: boolean }) {
-  const [c1, c2] = p ? clubColors(p.club) : ["var(--border)", "var(--border)"];
+function Node({ code, p, onRemove, done, league = "nba" }: { code: string; p: PoolPlayer | null; onRemove?: () => void; done: boolean; league?: LeagueId }) {
+  const [c1, c2] = p ? clubColors(p.club, league) : ["var(--border)", "var(--border)"];
   const rating = p ? effectiveRating(p, false) : 0;
   return (
     <div style={{ position: "absolute", left: `${SPOT[code].x}%`, top: `${SPOT[code].y}%`, transform: "translate(-50%,-50%)", textAlign: "center", width: 78 }}>
@@ -41,8 +42,8 @@ function Node({ code, p, onRemove, done }: { code: string; p: PoolPlayer | null;
   );
 }
 
-export default function CourtView({ slots, squad, onRemove, done }: {
-  slots: Slot[]; squad: (PoolPlayer | null)[]; onRemove: (i: number) => void; done: boolean;
+export default function CourtView({ slots, squad, onRemove, done, league = "nba" }: {
+  slots: Slot[]; squad: (PoolPlayer | null)[]; onRemove: (i: number) => void; done: boolean; league?: LeagueId;
 }) {
   const starters = slots.map((s, i) => ({ s, i })).filter(({ s }) => s.code !== "INT");
   const bench = slots.map((s, i) => ({ s, i })).filter(({ s }) => s.code === "INT");
@@ -72,7 +73,7 @@ export default function CourtView({ slots, squad, onRemove, done }: {
           <path d="M40 100 A 10 10 0 0 1 60 100" fill="none" stroke="var(--border)" strokeWidth="0.8" />
         </svg>
         {starters.map(({ s, i }) => (
-          <Node key={i} code={s.code} p={squad[i]} onRemove={() => onRemove(i)} done={done} />
+          <Node key={i} code={s.code} p={squad[i]} onRemove={() => onRemove(i)} done={done} league={league} />
         ))}
       </div>
 
@@ -85,7 +86,7 @@ export default function CourtView({ slots, squad, onRemove, done }: {
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {bench.map(({ i }) => {
               const p = squad[i];
-              const [c1] = p ? clubColors(p.club) : ["var(--border)"];
+              const [c1] = p ? clubColors(p.club, league) : ["var(--border)"];
               const r = p ? effectiveRating(p, true) : 0;
               const boost = p ? r > p.rating : false;
               return (

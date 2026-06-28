@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadGamesData, rng, pickN, type GamePlayer } from "@/lib/games-data";
+import { loadGamesData, rng, pickN, gameKey, type GamePlayer } from "@/lib/games-data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
-
-const GAME = "draft-class";
+import type { LeagueId } from "@/lib/league";
 
 interface Round { target: GamePlayer; options: GamePlayer[] }
 type Phase = "loading" | "playing" | "over";
@@ -39,7 +38,8 @@ function buildRound(pool: GamePlayer[], rand: () => number): Round | null {
   return { target, options: pickN([target, ...distractors], 4, rand) };
 }
 
-export default function DraftClass() {
+export default function DraftClass({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("draft-class", league);
   const [phase, setPhase] = useState<Phase>("loading");
   const [pool, setPool] = useState<GamePlayer[]>([]);
   const [round, setRound] = useState<Round | null>(null);
@@ -59,7 +59,7 @@ export default function DraftClass() {
     let alive = true;
     randRef.current = rng(Date.now());
     setBest(getScore(GAME).best);
-    loadGamesData().then((data) => {
+    loadGamesData(league).then((data) => {
       if (!alive) return;
       const eligible = data.players.filter((p) => hasDraft(p) && p.apps >= 100 && p.fame > 55);
       if (eligible.length < 4) { setError("Not enough draft data to play."); setPhase("over"); return; }
@@ -68,14 +68,15 @@ export default function DraftClass() {
       setPhase("playing");
     }).catch(() => { if (alive) { setError("Could not load player data."); setPhase("over"); } });
     return () => { alive = false; if (advanceTimer.current) clearTimeout(advanceTimer.current); };
-  }, [nextRound]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextRound, league, GAME]);
 
   const endRun = useCallback((finalScore: number) => {
     recordScore(GAME, finalScore);
     void submitScore(GAME, finalScore);
     setBest(getScore(GAME).best);
     setPhase("over");
-  }, []);
+  }, [GAME]);
 
   const onPick = useCallback((player: GamePlayer) => {
     if (!round || chosenId !== null) return;
@@ -95,7 +96,7 @@ export default function DraftClass() {
 
   const target = round?.target;
   const bio = target?.bio;
-  const dotColor = target ? clubColors(target.club)[0] : "var(--muted)";
+  const dotColor = target ? clubColors(target.club, league)[0] : "var(--muted)";
   const correctId = round?.target.id ?? null;
 
   return (
@@ -116,7 +117,7 @@ export default function DraftClass() {
               {bio.draftNumber === 1 ? "No. 1 overall pick" : `${ordinal(bio.draftNumber!)} overall pick`}
             </div>
             <div style={styles.draftLine}>
-              {bio.draftYear} NBA Draft{bio.draftRound ? ` · Round ${bio.draftRound}` : ""}
+              {bio.draftYear} {league === "wnba" ? "WNBA" : "NBA"} Draft{bio.draftRound ? ` · Round ${bio.draftRound}` : ""}
             </div>
             <div style={styles.clues}>
               {bio.college && <span className="chip">{bio.college}</span>}

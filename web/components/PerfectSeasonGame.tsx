@@ -13,6 +13,7 @@ import {
   Mode, MODE_INFO, PoolPlayer, REROLLS, SQUADS, SALARY_CAP, salaryFor, effectiveRating,
 } from "@/lib/types";
 import { simulateSeason, verdict } from "@/lib/sim";
+import { getLeague, type LeagueId } from "@/lib/league";
 import { POS_LABEL, posBucket } from "@/lib/format";
 
 type PosFilter = "All" | "G" | "F" | "C";
@@ -29,7 +30,8 @@ import { AD_SLOTS } from "@/lib/ads";
 const rnd = <T,>(a: T[]): T => a[Math.floor(Math.random() * a.length)];
 const ORDER: Mode[] = ["quick", "classic", "full17", "cap", "gauntlet", "spoon"];
 
-export default function PerfectSeasonGame() {
+export default function PerfectSeasonGame({ league = "nba" }: { league?: LeagueId }) {
+  const seasonGames = getLeague(league).seasonGames;
   const [eraPool, setEraPool] = useState<PoolPlayer[] | null>(null);
   const [yearPool, setYearPool] = useState<PoolPlayer[] | null>(null);
   const [strengths, setStrengths] = useState<Record<string, number[]>>({});
@@ -55,7 +57,7 @@ export default function PerfectSeasonGame() {
   }, []);
 
   useEffect(() => {
-    Promise.all([loadPool(), loadMeta(), loadStrengths()])
+    Promise.all([loadPool(league), loadMeta(league), loadStrengths(league)])
       .then(([p, , s]) => { setEraPool(p); setStrengths(s.bySeason); })
       .catch(() => setErr("Couldn't load the player pool. Try refreshing."));
     setMuted(isMuted());
@@ -68,7 +70,7 @@ export default function PerfectSeasonGame() {
 
   // The per-season pool is large, so only fetch it the first time Year mode is used.
   useEffect(() => {
-    if (byYear && !yearPool) loadPoolYears().then(setYearPool).catch(() => {});
+    if (byYear && !yearPool) loadPoolYears(league).then(setYearPool).catch(() => {});
   }, [byYear, yearPool]);
 
   const pool = byYear ? yearPool : eraPool;
@@ -274,7 +276,7 @@ export default function PerfectSeasonGame() {
             Perfect <span style={{ color: "var(--accent)" }}>Season</span>
           </h1>
           <p style={{ color: "var(--muted)", maxWidth: 640, marginTop: 6 }}>
-            Spin for a franchise and era, draft the player, fill your team and chase a flawless 82–0.
+            Spin for a franchise and era, draft the player, fill your team and chase a flawless {getLeague(league).perfectLabel}.
             Choose your game.
           </p>
         </header>
@@ -449,7 +451,7 @@ export default function PerfectSeasonGame() {
             )}
           </>
         ) : (
-          <ResultView mode={mode} squad={filled} avg={avg} strengths={strengths} onReset={reset} onMode={() => setMode(null)} />
+          <ResultView mode={mode} squad={filled} avg={avg} strengths={strengths} league={league} onReset={reset} onMode={() => setMode(null)} />
         )}
       </section>
 
@@ -459,7 +461,7 @@ export default function PerfectSeasonGame() {
           <span>The floor</span>
           <span style={{ color: "var(--gold)" }}>{filled.length ? `AVG ${avg.toFixed(1)}` : "—"}</span>
         </div>
-        <CourtView slots={slots} squad={squad} onRemove={clearSlot} done={done} />
+        <CourtView slots={slots} squad={squad} onRemove={clearSlot} done={done} league={league} />
         <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
           {filled.length > 0 && !done && (
             <button onClick={reset} style={linkBtn}>start over</button>
@@ -493,30 +495,32 @@ function Reel({ label, value, spinning, big }: { label: string; value: string | 
   );
 }
 
-function ResultView({ mode, squad, avg, strengths, onReset, onMode }: {
+function ResultView({ mode, squad, avg, strengths, onReset, onMode, league = "nba" }: {
   mode: Mode; squad: PoolPlayer[]; avg: number; strengths: Record<string, number[]>;
-  onReset: () => void; onMode: () => void;
+  onReset: () => void; onMode: () => void; league?: LeagueId;
 }) {
+  const lg = getLeague(league);
+  const seasonGames = lg.seasonGames;
   const [name, setNm] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // One freshly-rolled 82-game season is the actual result this attempt — a
-  // perfect 82–0 is rare even with an elite squad (see lib/sim.ts).
+  // One freshly-rolled season is the actual result this attempt — a perfect
+  // season is rare even with an elite squad (see lib/sim.ts).
   const sim = useMemo(() => {
     const eras = Array.from(new Set(squad.map((p) => p.era)));
     const pool = eras.flatMap((e) => strengths[e] || []);
-    return simulateSeason(avg, pool.length ? pool : Object.values(strengths).flat(), { mode });
-  }, [squad, avg, strengths, mode]);
+    return simulateSeason(avg, pool.length ? pool : Object.values(strengths).flat(), { mode, games: seasonGames });
+  }, [squad, avg, strengths, mode, seasonGames]);
 
   const rec = { wins: sim.wins, losses: sim.losses };
-  const v = verdict(sim.wins);
-  const perfect = mode === "spoon" ? sim.wins === 0 : sim.wins === 82;
+  const v = verdict(sim.wins, seasonGames);
+  const perfect = mode === "spoon" ? sim.wins === 0 : sim.wins === seasonGames;
 
   useEffect(() => { setNm(getName()); if (perfect) fanfare(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function save() {
     if (name.trim()) setName(name.trim());
-    const score = mode === "spoon" ? 82 - sim.wins : sim.wins;
+    const score = mode === "spoon" ? seasonGames - sim.wins : sim.wins;
     submitScore(`perfect-${mode}`, score, true);
     // also feed the rolling daily board shown on the home page
     submitScore(`daily-${todayKey()}`, score, true);
@@ -535,14 +539,14 @@ function ResultView({ mode, squad, avg, strengths, onReset, onMode }: {
       <p style={{ color: "var(--muted)", maxWidth: 340, margin: "8px auto 0", lineHeight: 1.5 }}>{v.s}</p>
 
       <div style={{ display: "flex", gap: 2, justifyContent: "center", marginTop: 18, flexWrap: "wrap", maxWidth: 360, marginInline: "auto" }}>
-        {Array.from({ length: 82 }).map((_, i) => (
+        {Array.from({ length: seasonGames }).map((_, i) => (
           <span key={i} style={{ width: 5, height: 14, borderRadius: 1, background: i < rec.wins ? "var(--accent-2)" : "var(--border)" }} />
         ))}
       </div>
 
       <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 18, fontSize: ".8rem", color: "var(--muted)", flexWrap: "wrap" }}>
         <span>Squad rating <strong style={{ color: "var(--text)" }}>{avg.toFixed(1)}</strong></span>
-        <span>82–0 odds <strong style={{ color: "var(--text)" }}>{sim.perfectPct < 0.1 ? "<0.1" : sim.perfectPct.toFixed(1)}%</strong></span>
+        <span>{lg.perfectLabel} odds <strong style={{ color: "var(--text)" }}>{sim.perfectPct < 0.1 ? "<0.1" : sim.perfectPct.toFixed(1)}%</strong></span>
         <span>Stronger than <strong style={{ color: "var(--text)" }}>{sim.realPercentile}%</strong> of real teams</span>
       </div>
 
@@ -568,7 +572,7 @@ function ResultView({ mode, squad, avg, strengths, onReset, onMode }: {
             modeName: MODE_INFO[mode].name,
             players: squad.map((p) => ({ n: p.name, pos: p.pos, club: p.club, era: p.era, rating: p.rating })),
           }}
-          caption={`I built a ${rec.wins}–${rec.losses} all-time NBA team (${v.t}) in NBA 82-0!`}
+          caption={`I built a ${rec.wins}–${rec.losses} all-time ${lg.short} team (${v.t}) in ${lg.brand}!`}
         />
       </div>
 

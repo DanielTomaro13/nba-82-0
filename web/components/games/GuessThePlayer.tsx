@@ -6,14 +6,15 @@ import {
   dailySeed,
   rng,
   dayNumber,
+  gameKey,
   type GamePlayer,
 } from "@/lib/games-data";
 import { recordDaily, todaysResult } from "@/lib/progress";
+import { getLeague, leagueHref, type LeagueId } from "@/lib/league";
 import { initials } from "@/lib/format";
 import DailyStatsPanel from "@/components/games/DailyStats";
 import Confetti from "@/components/Confetti";
 
-const GAME = "guess-the-player";
 const MAX_SCORE = 100;
 const TOTAL_CLUES = 7;
 const REVEAL_COST = 14;
@@ -27,11 +28,11 @@ function posGroup(pos: string): string {
   return "a forward";
 }
 
-function buildClues(p: GamePlayer): string[] {
+function buildClues(p: GamePlayer, leagueShort: string): string[] {
   return [
     `${posGroup(p.pos)}`,
     `debuted around ${p.firstYear}`,
-    `played ${p.apps} NBA games`,
+    `played ${p.apps} ${leagueShort} games`,
     `averaged ${p.pts} points a game`,
     p.posName,
     `played for the ${p.club}`,
@@ -53,7 +54,9 @@ const surname = (name: string) => {
   return parts[parts.length - 1] ?? "";
 };
 
-export default function GuessThePlayer() {
+export default function GuessThePlayer({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("guess-the-player", league);
+  const lg = getLeague(league);
   const [pool, setPool] = useState<GamePlayer[]>([]);
   const [target, setTarget] = useState<GamePlayer | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -68,10 +71,10 @@ export default function GuessThePlayer() {
 
   useEffect(() => {
     let alive = true;
-    loadGamesData().then((data) => {
+    loadGamesData(league).then((data) => {
       if (!alive) return;
       const p = data.players.filter((x) => x.fame > 45).slice(0, 200);
-      const rand = rng(dailySeed("guess"));
+      const rand = rng(dailySeed("guess", league));
       const pick = p.length ? p[Math.floor(rand() * p.length)] : null;
       setPool(p);
       setTarget(pick);
@@ -88,9 +91,10 @@ export default function GuessThePlayer() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league]);
 
-  const clues = useMemo(() => (target ? buildClues(target) : []), [target]);
+  const clues = useMemo(() => (target ? buildClues(target, lg.short) : []), [target, lg.short]);
 
   // Pool names: unique surnames help us tolerate surname-only guesses.
   const surnameCounts = useMemo(() => {
@@ -149,9 +153,9 @@ export default function GuessThePlayer() {
 
   const finished = status !== "playing";
 
-  const shareText = `NBA Guess the Player #${dayNumber()} — ${
+  const shareText = `${lg.short} Guess the Player #${dayNumber()} — ${
     status === "won" ? `${score} pts` : "missed"
-  }\nnba82-0.com/games/guess-the-player`;
+  }\nnba82-0.com${leagueHref(league, "/games/guess-the-player")}`;
 
   if (!loaded) {
     return (

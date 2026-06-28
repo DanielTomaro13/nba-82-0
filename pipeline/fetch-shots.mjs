@@ -1,24 +1,40 @@
 /**
- * Shot charts — real zone data from stats.nba.com/stats/shotchartdetail.
- * Reads the generated games.json + playerSeasons.json, picks each top player's
- * peak real season, fetches their shot chart and stores a compact per-zone
- * make/attempt breakdown in shots.json (read by the player profile pages).
+ * Shot charts — real zone data from the league's stats API shotchartdetail
+ * feed. Reads the generated games.json + playerSeasons.json, picks each top
+ * player's peak real season, fetches their shot chart and stores a compact
+ * per-zone make/attempt breakdown in shots.json (read by the player profile
+ * pages).
  *
- * Env: SHOT_TOP=120  RATE_MS=2000
+ * One pipeline, two leagues. Pick with `LEAGUE=nba` (default) or `LEAGUE=wnba`.
+ *
+ * Env: LEAGUE=nba|wnba  SHOT_TOP=120  RATE_MS=2000
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const HOST = "https://stats.nba.com/stats";
+const LEAGUE = (process.env.LEAGUE || "nba").toLowerCase();
+
+// ---- per-league configuration ----------------------------------------------
+// shotchartdetail keys shots by PlayerID, so no team map is needed here; only
+// the data source (host/site/leagueId) and output dir vary by league.
+const LEAGUES = {
+  nba: { host: "https://stats.nba.com/stats", site: "https://www.nba.com", leagueId: "00", outSub: "" },
+  wnba: { host: "https://stats.wnba.com/stats", site: "https://www.wnba.com", leagueId: "10", outSub: "wnba" },
+};
+const cfg = LEAGUES[LEAGUE];
+if (!cfg) throw new Error(`unknown LEAGUE "${LEAGUE}" — use nba or wnba`);
+
+const HOST = cfg.host;
 const RATE_MS = Number(process.env.RATE_MS || 2000);
 const TOP = Number(process.env.SHOT_TOP || 120);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA = join(__dirname, "..", "web", "public", "data");
+const DATA = join(__dirname, "..", "web", "public", "data", cfg.outSub);
+const LEAGUE_ID = cfg.leagueId;
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   Accept: "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9",
-  Referer: "https://www.nba.com/", Origin: "https://www.nba.com",
+  Referer: `${cfg.site}/`, Origin: cfg.site,
   Connection: "keep-alive", "x-nba-stats-origin": "stats", "x-nba-stats-token": "true",
   "Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-site",
 };
@@ -60,7 +76,7 @@ async function main() {
     if (out[t.pid]) { done++; continue; } // already have it
     const j = await call("shotchartdetail", {
       CFID: "", CFPARAMS: "", ContextFilter: "", ContextMeasure: "FGA", DateFrom: "", DateTo: "", GameID: "",
-      GameSegment: "", LastNGames: "0", LeagueID: "00", Location: "", Month: "0", OpponentTeamID: "0", Outcome: "",
+      GameSegment: "", LastNGames: "0", LeagueID: LEAGUE_ID, Location: "", Month: "0", OpponentTeamID: "0", Outcome: "",
       Period: "0", PlayerID: String(t.pid), PlayerPosition: "", RookieYear: "", Season: t.season,
       SeasonSegment: "", SeasonType: "Regular Season", TeamID: "0", VsConference: "", VsDivision: "",
     });

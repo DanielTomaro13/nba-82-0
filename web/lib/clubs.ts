@@ -1,5 +1,8 @@
+/** Team colours + abbreviations, per league, keyed by franchise nickname. */
+import type { LeagueId } from "@/lib/league";
+
 /** NBA team colours, keyed by the franchise nickname (a substring of the name). */
-const CLUB_COLORS: [match: string, primary: string, secondary: string][] = [
+const NBA_CLUB_COLORS: [match: string, primary: string, secondary: string][] = [
   ["Hawks", "#e03a3e", "#c1d32f"],
   ["Celtics", "#007a33", "#ba9653"],
   ["Nets", "#000000", "#ffffff"],
@@ -36,23 +39,62 @@ const CLUB_COLORS: [match: string, primary: string, secondary: string][] = [
   ["Bullets", "#002b5c", "#e31837"],
 ];
 
-export function clubColors(club: string): [string, string] {
-  const hit = CLUB_COLORS.find(([m]) => club.includes(m));
+/** WNBA team colours, keyed by franchise nickname. Includes defunct franchises. */
+const WNBA_CLUB_COLORS: [match: string, primary: string, secondary: string][] = [
+  ["Dream", "#e03a3e", "#000000"],
+  ["Sky", "#418fde", "#fdd023"],
+  ["Sun", "#dc4405", "#0a2240"],
+  ["Wings", "#0c2340", "#c4d600"],
+  ["Valkyries", "#5b2c83", "#000000"],
+  ["Fever", "#002d62", "#e03a3e"],
+  ["Aces", "#000000", "#ba0c2f"],
+  ["Sparks", "#552583", "#fdb927"],
+  ["Lynx", "#266092", "#79bc43"],
+  ["Liberty", "#6eceb2", "#000000"],
+  ["Mercury", "#e56020", "#1d1160"],
+  ["Storm", "#2c5234", "#fedb00"],
+  ["Mystics", "#e03a3e", "#002b5c"],
+  // defunct
+  ["Comets", "#ba0c2f", "#fdb927"],
+  ["Rockers", "#862633", "#fdbb30"],
+  ["Sting", "#008752", "#6f2c91"],
+  ["Sol", "#f47920", "#000000"],
+  ["Fire", "#d50032", "#000000"],
+  ["Monarchs", "#6f2c91", "#fdb927"],
+];
+
+const COLORS: Record<LeagueId, [string, string, string][]> = {
+  nba: NBA_CLUB_COLORS,
+  wnba: WNBA_CLUB_COLORS,
+};
+
+export function clubColors(club: string, league: LeagueId = "nba"): [string, string] {
+  const hit = COLORS[league].find(([m]) => club.includes(m));
   return hit ? [hit[1], hit[2]] : ["#26263a", "#9b9bad"];
 }
 
+const NBA_ABBR: Record<string, string> = {
+  Hawks: "ATL", Celtics: "BOS", Nets: "BKN", Hornets: "CHA", Bulls: "CHI",
+  Cavaliers: "CLE", Mavericks: "DAL", Nuggets: "DEN", Pistons: "DET",
+  Warriors: "GSW", Rockets: "HOU", Pacers: "IND", Clippers: "LAC",
+  Lakers: "LAL", Grizzlies: "MEM", Heat: "MIA", Bucks: "MIL",
+  Timberwolves: "MIN", Pelicans: "NOP", Knicks: "NYK", Thunder: "OKC",
+  Magic: "ORL", "76ers": "PHI", Suns: "PHX", "Trail Blazers": "POR",
+  Kings: "SAC", Spurs: "SAS", Raptors: "TOR", Jazz: "UTA", Wizards: "WAS",
+  SuperSonics: "SEA", Bullets: "WAS",
+};
+
+const WNBA_ABBR: Record<string, string> = {
+  Dream: "ATL", Sky: "CHI", Sun: "CON", Wings: "DAL", Valkyries: "GSV",
+  Fever: "IND", Aces: "LVA", Sparks: "LAS", Lynx: "MIN", Liberty: "NYL",
+  Mercury: "PHO", Storm: "SEA", Mystics: "WAS",
+  Comets: "HOU", Rockers: "CLE", Sting: "CHA", Sol: "MIA", Fire: "POR", Monarchs: "SAC",
+};
+
+const ABBR: Record<LeagueId, Record<string, string>> = { nba: NBA_ABBR, wnba: WNBA_ABBR };
+
 /** A short 3-letter abbreviation for a team. */
-export function clubAbbr(club: string): string {
-  const map: Record<string, string> = {
-    Hawks: "ATL", Celtics: "BOS", Nets: "BKN", Hornets: "CHA", Bulls: "CHI",
-    Cavaliers: "CLE", Mavericks: "DAL", Nuggets: "DEN", Pistons: "DET",
-    Warriors: "GSW", Rockets: "HOU", Pacers: "IND", Clippers: "LAC",
-    Lakers: "LAL", Grizzlies: "MEM", Heat: "MIA", Bucks: "MIL",
-    Timberwolves: "MIN", Pelicans: "NOP", Knicks: "NYK", Thunder: "OKC",
-    Magic: "ORL", "76ers": "PHI", Suns: "PHX", "Trail Blazers": "POR",
-    Kings: "SAC", Spurs: "SAS", Raptors: "TOR", Jazz: "UTA", Wizards: "WAS",
-    SuperSonics: "SEA", Bullets: "WAS",
-  };
-  for (const [k, v] of Object.entries(map)) if (club.includes(k)) return v;
+export function clubAbbr(club: string, league: LeagueId = "nba"): string {
+  for (const [k, v] of Object.entries(ABBR[league])) if (club.includes(k)) return v;
   return club.slice(0, 3).toUpperCase();
 }

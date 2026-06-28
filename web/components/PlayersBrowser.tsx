@@ -4,13 +4,14 @@ import Link from "next/link";
 import type { ProfilePlayer } from "@/lib/playerdb";
 import { clubColors } from "@/lib/clubs";
 import { posBucket } from "@/lib/format";
+import { leagueHref, type LeagueId } from "@/lib/league";
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "All", label: "All" }, { key: "G", label: "Guards" },
   { key: "F", label: "Forwards" }, { key: "C", label: "Centers" },
 ];
 
-export default function PlayersBrowser({ players }: { players: ProfilePlayer[] }) {
+export default function PlayersBrowser({ players, league = "nba" }: { players: ProfilePlayer[]; league?: LeagueId }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("All");
   const shown = useMemo(() => {
@@ -35,9 +36,9 @@ export default function PlayersBrowser({ players }: { players: ProfilePlayer[] }
       </div>
       <div className="grid-cards">
         {shown.map((p) => {
-          const [c1] = clubColors(p.club);
+          const [c1] = clubColors(p.club, league);
           return (
-            <Link key={p.id} href={`/players/${p.id}/${p.slug}`} className="card" style={{ padding: "1rem", display: "grid", gap: 4 }}>
+            <Link key={p.id} href={leagueHref(league, `/players/${p.id}/${p.slug}`)} className="card" style={{ padding: "1rem", display: "grid", gap: 4 }}>
               <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</strong>
                 <span style={{ fontFamily: "var(--font-cond)", fontSize: "1.3rem", color: p.rating >= 90 ? "var(--gold)" : "var(--text)" }}>{p.rating}</span>

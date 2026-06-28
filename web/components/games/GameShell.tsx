@@ -3,19 +3,22 @@ import JsonLd from "@/components/JsonLd";
 import AdUnit from "@/components/AdUnit";
 import { AD_SLOTS } from "@/lib/ads";
 import { SITE } from "@/lib/seo";
+import { getLeague, leagueHref, type LeagueId } from "@/lib/league";
 
 /** Server wrapper giving every game a consistent, SEO-friendly frame. */
 export default function GameShell({
-  title, emoji, intro, howTo, children, slug,
+  title, emoji, intro, howTo, children, slug, league = "nba",
 }: {
   title: string; emoji: string; intro: string; howTo: string[];
-  children: React.ReactNode; slug: string;
+  children: React.ReactNode; slug: string; league?: LeagueId;
 }) {
+  const lg = getLeague(league);
+  const gamesHref = leagueHref(league, "/games");
   const ld = {
     "@context": "https://schema.org",
     "@type": "VideoGame",
-    name: `${title} — NBA 82-0`,
-    url: `${SITE.url}/games/${slug}`,
+    name: `${title} — ${lg.brand}`,
+    url: `${SITE.url}${leagueHref(league, `/games/${slug}`)}`,
     applicationCategory: "Game",
     operatingSystem: "Web",
     gamePlatform: "Web browser",
@@ -26,7 +29,7 @@ export default function GameShell({
     <div style={{ display: "grid", gap: "1.5rem" }}>
       <JsonLd data={ld} />
       <nav style={{ fontSize: ".82rem", color: "var(--muted)" }}>
-        <Link href="/games" style={{ color: "var(--accent)" }}>← All games</Link>
+        <Link href={gamesHref} style={{ color: "var(--accent)" }}>← All games</Link>
       </nav>
       <header style={{ display: "grid", gap: 6 }}>
         <h1 style={{ fontSize: "2rem", fontWeight: 900, margin: 0, textTransform: "uppercase" }}>

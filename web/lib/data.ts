@@ -1,5 +1,6 @@
 /** Client loaders for the static datasets in /public/data. */
 import type { Meta, PoolPlayer } from "@/lib/types";
+import { dataPath, type LeagueId } from "@/lib/league";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -50,25 +51,26 @@ export interface Playoffs {
 export const DATA_VER = process.env.NEXT_PUBLIC_DATA_VERSION ? `?v=${process.env.NEXT_PUBLIC_DATA_VERSION}` : "";
 
 const cache = new Map<string, unknown>();
-async function loadJson<T>(file: string): Promise<T> {
-  if (cache.has(file)) return cache.get(file) as T;
-  const res = await fetch(`${BASE}/data/${file}${DATA_VER}`, { cache: "force-cache" });
+async function loadJson<T>(file: string, league: LeagueId = "nba"): Promise<T> {
+  const key = `${league}:${file}`;
+  if (cache.has(key)) return cache.get(key) as T;
+  const res = await fetch(`${BASE}/data/${dataPath(league)}${file}${DATA_VER}`, { cache: "force-cache" });
   const data = (await res.json()) as T;
-  cache.set(file, data);
+  cache.set(key, data);
   return data;
 }
 
-export const loadMeta = () => loadJson<Meta>("meta.json");
-export const loadPool = () => loadJson<PoolPlayer[]>("pool.json");
-export const loadPoolYears = () => loadJson<PoolPlayer[]>("poolYears.json");
-export const loadResults = () => loadJson<Results>("results.json");
-export const loadStrengths = () => loadJson<{ bySeason: Record<string, number[]> }>("strengths.json");
-export const loadPlayoffs = () => loadJson<Playoffs>("playoffs.json");
-export const loadPlayoffsBySeason = () => loadJson<Record<string, Playoffs>>("playoffsBySeason.json");
+export const loadMeta = (league: LeagueId = "nba") => loadJson<Meta>("meta.json", league);
+export const loadPool = (league: LeagueId = "nba") => loadJson<PoolPlayer[]>("pool.json", league);
+export const loadPoolYears = (league: LeagueId = "nba") => loadJson<PoolPlayer[]>("poolYears.json", league);
+export const loadResults = (league: LeagueId = "nba") => loadJson<Results>("results.json", league);
+export const loadStrengths = (league: LeagueId = "nba") => loadJson<{ bySeason: Record<string, number[]> }>("strengths.json", league);
+export const loadPlayoffs = (league: LeagueId = "nba") => loadJson<Playoffs>("playoffs.json", league);
+export const loadPlayoffsBySeason = (league: LeagueId = "nba") => loadJson<Record<string, Playoffs>>("playoffsBySeason.json", league);
 
 export interface LeaderEntry { pid: number; name: string; club: string; value: number }
 export interface SeasonLeaders {
   cats: { key: string; label: string }[];
   bySeason: Record<string, Record<string, LeaderEntry[]>>;
 }
-export const loadSeasonLeaders = () => loadJson<SeasonLeaders>("seasonLeaders.json");
+export const loadSeasonLeaders = (league: LeagueId = "nba") => loadJson<SeasonLeaders>("seasonLeaders.json", league);

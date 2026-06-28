@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadGamesData, rng, pickN, type GamePlayer } from "@/lib/games-data";
+import { loadGamesData, rng, pickN, gameKey, type GamePlayer } from "@/lib/games-data";
 import { recordScore, getScore } from "@/lib/progress";
 import { submitScore } from "@/lib/leaderboard";
 import { clubColors } from "@/lib/clubs";
-
-const GAME = "efficiency-duel";
+import type { LeagueId } from "@/lib/league";
 
 type StatKey = "ts" | "usg" | "pie";
 interface Stat { key: StatKey; label: string; suffix: string }
@@ -22,7 +21,8 @@ type Phase = "loading" | "playing" | "revealing" | "over";
 type Choice = "higher" | "lower";
 interface Round { left: GamePlayer; right: GamePlayer; stat: Stat }
 
-export default function EfficiencyDuel() {
+export default function EfficiencyDuel({ league = "nba" }: { league?: LeagueId } = {}) {
+  const GAME = gameKey("efficiency-duel", league);
   const poolRef = useRef<GamePlayer[]>([]);
   const randRef = useRef<() => number>(() => Math.random());
 
@@ -64,7 +64,7 @@ export default function EfficiencyDuel() {
     let alive = true;
     (async () => {
       try {
-        const data = await loadGamesData();
+        const data = await loadGamesData(league);
         if (!alive) return;
         // Advanced stats only exist for 1996-97+ players (the API has no
         // pre-1996 advanced data). Rank the well-known, decent-sample ones.
@@ -77,13 +77,14 @@ export default function EfficiencyDuel() {
       }
     })();
     return () => { alive = false; };
-  }, [startRun]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRun, league, GAME]);
 
   const endRun = useCallback((finalStreak: number) => {
     const isBest = recordScore(GAME, finalStreak, true);
     setBest(isBest ? finalStreak : getScore(GAME).best);
     void submitScore(GAME, finalStreak, true).catch(() => {});
-  }, []);
+  }, [GAME]);
 
   const answer = useCallback((choice: Choice) => {
     if (phase !== "playing" || !round) return;
@@ -121,8 +122,8 @@ export default function EfficiencyDuel() {
             Who had the higher <span style={{ color: "var(--gold)" }}>{round.stat.label}</span>?
           </div>
           <div style={grid}>
-            <PlayerCard player={round.left} stat={round.stat} shown tone="known" />
-            <PlayerCard key={round.right.id} player={round.right} stat={round.stat} shown={reveal !== null} reveal={reveal} tone="challenger" />
+            <PlayerCard player={round.left} stat={round.stat} shown tone="known" league={league} />
+            <PlayerCard key={round.right.id} player={round.right} stat={round.stat} shown={reveal !== null} reveal={reveal} tone="challenger" league={league} />
           </div>
           <div style={btnRow}>
             <button className="btn btn-primary" style={tapBtn} disabled={phase !== "playing"} onClick={() => answer("higher")}>▲ Higher</button>
@@ -134,10 +135,10 @@ export default function EfficiencyDuel() {
   );
 }
 
-function PlayerCard({ player, stat, shown, reveal, tone }: {
-  player: GamePlayer; stat: Stat; shown: boolean; reveal?: { correct: boolean; value: number } | null; tone: "known" | "challenger";
+function PlayerCard({ player, stat, shown, reveal, tone, league = "nba" }: {
+  player: GamePlayer; stat: Stat; shown: boolean; reveal?: { correct: boolean; value: number } | null; tone: "known" | "challenger"; league?: LeagueId;
 }) {
-  const [primary, secondary] = clubColors(player.club);
+  const [primary, secondary] = clubColors(player.club, league);
   let valueColor = "var(--text)";
   if (tone === "challenger" && reveal) valueColor = reveal.correct ? "var(--accent-2)" : "var(--danger)";
   return (

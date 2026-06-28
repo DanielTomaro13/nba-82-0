@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { loadPlayoffsBySeason, type Playoffs } from "@/lib/data";
 import PlayoffBracket from "@/components/PlayoffBracket";
+import type { LeagueId } from "@/lib/league";
 
-export default function PlayoffsView({ initial }: { initial: Playoffs }) {
+export default function PlayoffsView({ initial, league = "nba" }: { initial: Playoffs; league?: LeagueId }) {
   const [all, setAll] = useState<Record<string, Playoffs> | null>(null);
   const [season, setSeason] = useState(initial.season);
-  useEffect(() => { loadPlayoffsBySeason().then(setAll).catch(() => {}); }, []);
+  useEffect(() => { loadPlayoffsBySeason(league).then(setAll).catch(() => {}); }, [league]);
   const data = (all && all[season]) || initial;
   const seasons = all ? Object.keys(all).sort().reverse() : [initial.season];
 
@@ -19,7 +20,7 @@ export default function PlayoffsView({ initial }: { initial: Playoffs }) {
           {seasons.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
-      <PlayoffBracket data={data} />
+      <PlayoffBracket data={data} league={league} />
     </div>
   );
 }

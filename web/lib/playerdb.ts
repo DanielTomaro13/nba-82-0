@@ -3,63 +3,60 @@
  * from disk so we can statically pre-render a profile page per notable player
  * and list them in the sitemap.
  */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { GamePlayer, SeasonLine, PlayerShots } from "@/lib/games-data";
 import { slugify } from "@/lib/format";
+import { readData } from "@/lib/serverdata";
+import type { LeagueId } from "@/lib/league";
 
 export interface ProfilePlayer extends GamePlayer {
   slug: string;
 }
 
-let _all: ProfilePlayer[] | null = null;
+const _all: Partial<Record<LeagueId, ProfilePlayer[]>> = {};
 
-export function allPlayers(): ProfilePlayer[] {
-  if (_all) return _all;
-  const file = join(process.cwd(), "public", "data", "games.json");
-  const data = JSON.parse(readFileSync(file, "utf8")) as { players: GamePlayer[] };
-  _all = data.players.map((p) => ({ ...p, slug: slugify(p.name) }));
-  return _all;
+export function allPlayers(league: LeagueId = "nba"): ProfilePlayer[] {
+  if (_all[league]) return _all[league]!;
+  const data = readData<{ players: GamePlayer[] }>("games.json", league);
+  _all[league] = data.players.map((p) => ({ ...p, slug: slugify(p.name) }));
+  return _all[league]!;
 }
 
 /**
  * The most famous players first — used for "featured" lists and the sitemap.
  * (Every player in the dataset gets a page; this is just an ordering/cap.)
  */
-export function notablePlayers(): ProfilePlayer[] {
-  return [...allPlayers()].sort((a, b) => b.fame - a.fame).slice(0, 800);
+export function notablePlayers(league: LeagueId = "nba"): ProfilePlayer[] {
+  return [...allPlayers(league)].sort((a, b) => b.fame - a.fame).slice(0, 800);
 }
 
-export function playerById(id: string): ProfilePlayer | null {
-  return allPlayers().find((p) => String(p.id) === String(id)) ?? null;
+export function playerById(id: string, league: LeagueId = "nba"): ProfilePlayer | null {
+  return allPlayers(league).find((p) => String(p.id) === String(id)) ?? null;
 }
 
-let _ids: Set<number> | null = null;
+const _ids: Partial<Record<LeagueId, Set<number>>> = {};
 /** True if this player id has a profile page (i.e. exists in the dataset). */
-export function playerHasPage(id: number | string): boolean {
-  if (!_ids) _ids = new Set(allPlayers().map((p) => p.id));
-  return _ids.has(Number(id));
+export function playerHasPage(id: number | string, league: LeagueId = "nba"): boolean {
+  if (!_ids[league]) _ids[league] = new Set(allPlayers(league).map((p) => p.id));
+  return _ids[league]!.has(Number(id));
 }
 
-let _seasons: Record<string, SeasonLine[]> | null = null;
+const _seasons: Partial<Record<LeagueId, Record<string, SeasonLine[]>>> = {};
 /** A player's real season-by-season log (newest first). */
-export function seasonsFor(id: number | string): SeasonLine[] {
-  if (!_seasons) {
-    try {
-      _seasons = JSON.parse(readFileSync(join(process.cwd(), "public", "data", "playerSeasons.json"), "utf8"));
-    } catch { _seasons = {}; }
+export function seasonsFor(id: number | string, league: LeagueId = "nba"): SeasonLine[] {
+  if (!_seasons[league]) {
+    try { _seasons[league] = readData<Record<string, SeasonLine[]>>("playerSeasons.json", league); }
+    catch { _seasons[league] = {}; }
   }
-  const list = _seasons![String(id)] ?? [];
+  const list = _seasons[league]![String(id)] ?? [];
   return [...list].sort((a, b) => b.season.localeCompare(a.season));
 }
 
-let _shots: Record<string, PlayerShots> | null = null;
+const _shots: Partial<Record<LeagueId, Record<string, PlayerShots>>> = {};
 /** A player's real shot-zone breakdown, if we fetched it (top players). */
-export function shotsFor(id: number | string): PlayerShots | null {
-  if (!_shots) {
-    try {
-      _shots = JSON.parse(readFileSync(join(process.cwd(), "public", "data", "shots.json"), "utf8"));
-    } catch { _shots = {}; }
+export function shotsFor(id: number | string, league: LeagueId = "nba"): PlayerShots | null {
+  if (!_shots[league]) {
+    try { _shots[league] = readData<Record<string, PlayerShots>>("shots.json", league); }
+    catch { _shots[league] = {}; }
   }
-  return _shots![String(id)] ?? null;
+  return _shots[league]![String(id)] ?? null;
 }

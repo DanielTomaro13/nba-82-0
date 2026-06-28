@@ -6,6 +6,9 @@
     "build": "node build-data.mjs",
     "shots": "node fetch-shots.mjs",
     "legends": "node fetch-legends.mjs",
-    "playoffs": "node fetch-playoffs.mjs"
+    "playoffs": "node fetch-playoffs.mjs",
+    "build:wnba": "LEAGUE=wnba node build-data.mjs",
+    "shots:wnba": "LEAGUE=wnba node fetch-shots.mjs",
+    "playoffs:wnba": "LEAGUE=wnba node fetch-playoffs.mjs"
   }
 }
