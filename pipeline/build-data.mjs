@@ -47,6 +47,8 @@ const WNBA_TEAM_NAME = {
   GSV: "Golden State Valkyries", IND: "Indiana Fever", LVA: "Las Vegas Aces", LAS: "Los Angeles Sparks",
   MIN: "Minnesota Lynx", NYL: "New York Liberty", PHO: "Phoenix Mercury", SEA: "Seattle Storm",
   WAS: "Washington Mystics",
+  // 2026 expansion
+  TOR: "Toronto Tempo", PDX: "Portland Fire",
   // common tricode variants
   CONN: "Connecticut Sun", NY: "New York Liberty", LA: "Los Angeles Sparks", LV: "Las Vegas Aces",
   PHX: "Phoenix Mercury", GS: "Golden State Valkyries", GSW: "Golden State Valkyries",
@@ -61,6 +63,7 @@ const WNBA_TEAM_NAME = {
 const WNBA_TEAM_META = {
   "Atlanta Dream": ["East", "East"], "Chicago Sky": ["East", "East"], "Connecticut Sun": ["East", "East"],
   "Indiana Fever": ["East", "East"], "New York Liberty": ["East", "East"], "Washington Mystics": ["East", "East"],
+  "Toronto Tempo": ["East", "East"], // 2026 expansion (Portland Fire below)
   "Dallas Wings": ["West", "West"], "Golden State Valkyries": ["West", "West"], "Las Vegas Aces": ["West", "West"],
   "Los Angeles Sparks": ["West", "West"], "Minnesota Lynx": ["West", "West"], "Phoenix Mercury": ["West", "West"],
   "Seattle Storm": ["West", "West"],

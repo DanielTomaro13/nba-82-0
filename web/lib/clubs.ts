@@ -54,7 +54,8 @@ const WNBA_CLUB_COLORS: [match: string, primary: string, secondary: string][] = 
   ["Mercury", "#e56020", "#1d1160"],
   ["Storm", "#2c5234", "#fedb00"],
   ["Mystics", "#e03a3e", "#002b5c"],
-  // defunct
+  ["Tempo", "#d81e3f", "#000000"],     // 2026 expansion (Toronto)
+  // defunct (Portland Fire revived as 2026 expansion — shares this entry)
   ["Comets", "#ba0c2f", "#fdb927"],
   ["Rockers", "#862633", "#fdbb30"],
   ["Sting", "#008752", "#6f2c91"],
@@ -87,8 +88,8 @@ const NBA_ABBR: Record<string, string> = {
 const WNBA_ABBR: Record<string, string> = {
   Dream: "ATL", Sky: "CHI", Sun: "CON", Wings: "DAL", Valkyries: "GSV",
   Fever: "IND", Aces: "LVA", Sparks: "LAS", Lynx: "MIN", Liberty: "NYL",
-  Mercury: "PHO", Storm: "SEA", Mystics: "WAS",
-  Comets: "HOU", Rockers: "CLE", Sting: "CHA", Sol: "MIA", Fire: "POR", Monarchs: "SAC",
+  Mercury: "PHO", Storm: "SEA", Mystics: "WAS", Tempo: "TOR",
+  Comets: "HOU", Rockers: "CLE", Sting: "CHA", Sol: "MIA", Fire: "PDX", Monarchs: "SAC",
 };
 
 const ABBR: Record<LeagueId, Record<string, string>> = { nba: NBA_ABBR, wnba: WNBA_ABBR };

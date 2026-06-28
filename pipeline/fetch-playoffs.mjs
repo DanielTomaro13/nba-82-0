@@ -32,6 +32,8 @@ const WNBA_TEAM_NAME = {
   GSV: "Golden State Valkyries", IND: "Indiana Fever", LVA: "Las Vegas Aces", LAS: "Los Angeles Sparks",
   MIN: "Minnesota Lynx", NYL: "New York Liberty", PHO: "Phoenix Mercury", SEA: "Seattle Storm",
   WAS: "Washington Mystics",
+  // 2026 expansion
+  TOR: "Toronto Tempo", PDX: "Portland Fire",
   // common tricode variants
   CONN: "Connecticut Sun", NY: "New York Liberty", LA: "Los Angeles Sparks", LV: "Las Vegas Aces",
   PHX: "Phoenix Mercury", GS: "Golden State Valkyries", GSW: "Golden State Valkyries",
