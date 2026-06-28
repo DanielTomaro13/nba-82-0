@@ -18,6 +18,8 @@ type FuturesTeam = {
 type OddsSel = { label: string; model: number; fair: number; best?: { price: number; book: string }; ev: number };
 type OddsGame = { league: string; homeAbbr: string; awayAbbr: string; markets: { label: string; selections: OddsSel[] }[] };
 type FutOdds = { team: string; abbr: string; model_pct: number; model_fair: number | null; books: Record<string, number>; best?: { price: number; book: string }; edge?: number };
+type FutRow = { name: string; abbr?: string; model_pct?: number; model_fair?: number; books: Record<string, number>; best?: { price: number; book: string }; edge?: number };
+type FutMarket = { key: string; label: string; type: string; model: boolean; rows: FutRow[] };
 type Fantasy = { id: string; name: string; team: string; pos: string[]; price: number; proj: number; value: number | null; owned: number; gp: number; captain: number; pos_rank: string; price_change: number; ppm: number; opp: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Leaders = Record<string, { label: string; rows: { name: string; team: string; per_game: number; proj_total: number }[] }> | null;
@@ -114,6 +116,23 @@ function GameModal({ f, detail, onClose }: { f: Fixture; detail: any | null; onC
 
 const bookLabel = (b: string) => ({ sportsbet: "Sportsbet", ladbrokes: "Ladbrokes", pointsbet: "PointsBet", tab: "TAB", dabble: "Dabble" } as Record<string, string>)[b] || b;
 
+function MarketTable({ m, books }: { m: FutMarket; books: string[] }) {
+  return (
+    <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead><tr><th style={{ ...th, textAlign: "left" }}>{m.type === "player" ? "Player" : "Team"}</th>
+        {m.model ? <><th style={th}>Model %</th><th style={th}>Fair</th></> : null}
+        {books.map((b) => <th key={b} style={th}>{bookLabel(b)}</th>)}<th style={th}>Best</th>
+        {m.model ? <th style={th}>Edge</th> : null}</tr></thead>
+      <tbody>{m.rows.map((r, i) => (
+        <tr key={i}><td style={{ ...td, textAlign: "left" }}><strong>{r.name}</strong></td>
+          {m.model ? <><td style={{ ...td, color: "var(--gold)", fontWeight: 700 }}>{r.model_pct != null ? pct(r.model_pct) : "—"}</td><td style={{ ...td, color: "var(--muted)" }}>{od(r.model_fair)}</td></> : null}
+          {books.map((b) => <td key={b} style={{ ...td, color: r.best?.book === b ? "var(--text)" : "var(--muted)" }}>{od(r.books?.[b])}</td>)}
+          <td style={td}>{od(r.best?.price)}</td>
+          {m.model ? <td style={{ ...td, color: (r.edge ?? 0) > 0 ? "var(--gold)" : "var(--muted)", fontWeight: 700 }}>{r.edge == null ? "—" : (r.edge > 0 ? "+" : "") + (r.edge * 100).toFixed(1) + "%"}</td> : null}</tr>))}</tbody>
+    </table></div></div>
+  );
+}
+
 function FuturesValueTable({ rows, books }: { rows: FutOdds[]; books: string[] }) {
   return (
     <div style={panel}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -159,7 +178,9 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
   const [fantasy, setFantasy] = useState<Fantasy[] | null>(null);
   const [leaders, setLeaders] = useState<Leaders>(null);
   const [futOdds, setFutOdds] = useState<FutOdds[] | null>(null);
+  const [futMarkets, setFutMarkets] = useState<FutMarket[]>([]);
   const [futBooks, setFutBooks] = useState<string[]>([]);
+  const [futMkt, setFutMkt] = useState<string>("championship");
   const [leadCat, setLeadCat] = useState<string>("pts");
   const [fSort, setFSort] = useState<"proj" | "value" | "price" | "owned" | "captain" | "price_change">("proj");
   const [fq, setFq] = useState("");
@@ -176,7 +197,11 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
     fetch(`${BASE}/odds.json`).then((r) => r.json()).then((d) => setOdds((d.games || []).filter((g: OddsGame) => g.league === league))).catch(() => setOdds([]));
     fetch(`${BASE}/fantasy-${league}.json`).then((r) => r.json()).then((d) => setFantasy(d.players || [])).catch(() => setFantasy([]));
     fetch(`${BASE}/leaders.json`).then((r) => r.json()).then((d) => setLeaders(d.leagues?.[league]?.cats || null)).catch(() => setLeaders(null));
-    fetch(`${BASE}/futures-odds.json`).then((r) => r.json()).then((d) => { setFutOdds(d.leagues?.[league]?.championship || []); setFutBooks(d.books || []); }).catch(() => setFutOdds([]));
+    fetch(`${BASE}/futures-odds.json`).then((r) => r.json()).then((d) => {
+      setFutOdds(d.leagues?.[league]?.championship || []);
+      setFutMarkets((d.leagues?.[league]?.markets || []).filter((m: FutMarket) => m.rows.some((r) => r.books && Object.keys(r.books).length)));
+      setFutBooks(d.books || []);
+    }).catch(() => setFutOdds([]));
   }, [league]);
 
   function openGame(f: Fixture) {
@@ -217,11 +242,17 @@ export default function ModelView({ league }: { league: "nba" | "nbl" }) {
       )}
 
       {tab === "compare" && (
-        !futOdds ? <p style={{ color: "var(--muted)" }}>Loading odds…</p> :
-        !futOdds.some((r) => r.books && Object.keys(r.books).length) ?
-          <p style={{ color: "var(--muted)" }}>Game markets open closer to tip-off. Until then, here&apos;s the championship futures across the books.</p> : <>
-          <p style={{ color: "var(--muted)", fontSize: ".8rem" }}>Model fair price vs every book on the championship — {futBooks.map(bookLabel).join(", ")}. Best price highlighted.</p>
-          <FuturesValueTable rows={[...futOdds].filter((r) => r.books && Object.keys(r.books).length).sort((a, b) => b.model_pct - a.model_pct)} books={futBooks} />
+        !futMarkets.length ?
+          <p style={{ color: "var(--muted)" }}>Game markets open closer to tip-off. Bookmaker futures will show here as soon as they&apos;re posted.</p> : <>
+          <p style={{ color: "var(--muted)", fontSize: ".8rem" }}>Model fair price vs every book ({futBooks.map(bookLabel).join(", ")}) across every futures market. Best price highlighted.</p>
+          <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ color: "var(--muted)", fontSize: ".8rem" }}>Market</span>
+            <select value={futMarkets.some((m) => m.key === futMkt) ? futMkt : futMarkets[0].key} onChange={(e) => setFutMkt(e.target.value)} style={{ padding: ".45rem .6rem", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)" }}>
+              {futMarkets.map((m) => <option key={m.key} value={m.key}>{m.label}{m.model ? "  ·  model" : ""}</option>)}
+            </select>
+            <span style={{ color: "var(--muted)", fontSize: ".75rem" }}>{futMarkets.length} markets</span>
+          </div>
+          <MarketTable m={futMarkets.find((m) => m.key === futMkt) || futMarkets[0]} books={futBooks} />
         </>
       )}
 
