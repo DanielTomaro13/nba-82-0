@@ -76,6 +76,14 @@ function PropCard({ pp }: { pp: any }) {
       {(pp.discrete || []).map((s: any, i: number) => (
         <div key={"d" + i} style={{ color: "var(--muted)", fontSize: ".75rem", margin: "2px 0" }}><span style={{ color: "var(--text)" }}>{s.label}:</span> {pct(s.prob)} · {od(s.fair)}</div>
       ))}
+      {(pp.periods || []).length > 0 && (
+        <div style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid var(--border)" }}>
+          <div style={{ color: "var(--accent)", fontSize: ".66rem", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 2 }}>1Q / 1H markets</div>
+          {pp.periods.map((s: any, i: number) => (
+            <div key={"p" + i} style={{ color: "var(--muted)", fontSize: ".75rem", margin: "2px 0" }}><span style={{ color: "var(--text)" }}>{s.label} {s.proj}:</span> {lines(s)}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
