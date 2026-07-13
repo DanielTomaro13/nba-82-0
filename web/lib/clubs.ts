@@ -67,6 +67,7 @@ const WNBA_CLUB_COLORS: [match: string, primary: string, secondary: string][] = 
 const COLORS: Record<LeagueId, [string, string, string][]> = {
   nba: NBA_CLUB_COLORS,
   wnba: WNBA_CLUB_COLORS,
+  nbasummer: NBA_CLUB_COLORS, // Summer League fields the real NBA franchises
 };
 
 export function clubColors(club: string, league: LeagueId = "nba"): [string, string] {
@@ -92,7 +93,7 @@ const WNBA_ABBR: Record<string, string> = {
   Comets: "HOU", Rockers: "CLE", Sting: "CHA", Sol: "MIA", Fire: "PDX", Monarchs: "SAC",
 };
 
-const ABBR: Record<LeagueId, Record<string, string>> = { nba: NBA_ABBR, wnba: WNBA_ABBR };
+const ABBR: Record<LeagueId, Record<string, string>> = { nba: NBA_ABBR, wnba: WNBA_ABBR, nbasummer: NBA_ABBR };
 
 /** A short 3-letter abbreviation for a team. */
 export function clubAbbr(club: string, league: LeagueId = "nba"): string {

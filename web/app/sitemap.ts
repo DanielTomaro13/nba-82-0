@@ -76,5 +76,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${SITE.url}/wnba/match/${id}/`, priority: 0.3, changeFrequency: "monthly", lastModified: now,
   }));
 
-  return [...top, ...teams, ...games, ...players, ...matches, ...wnbaTop, ...wnbaTeams, ...wnbaPlayers, ...wnbaMatches];
+  // Summer League section — stats & projections surface only (no games/teams pages).
+  const summerTop: MetadataRoute.Sitemap = ["/summer/", "/summer/model/"].map((path) => ({
+    url: `${SITE.url}${path}`, priority: 0.6, changeFrequency: "daily", lastModified: now,
+  }));
+
+  return [...top, ...teams, ...games, ...players, ...matches,
+    ...wnbaTop, ...wnbaTeams, ...wnbaPlayers, ...wnbaMatches, ...summerTop];
 }

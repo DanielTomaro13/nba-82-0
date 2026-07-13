@@ -179,8 +179,21 @@ function ValueTab({ value, futOdds, futBooks }: { value: { label: string; model:
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export default function ModelView({ league }: { league: "nba" | "nbl" | "wnba" }) {
-  const [tab, setTab] = useState<"projections" | "pickem" | "compare" | "futures" | "value" | "fantasy" | "leaders">("projections");
+type ModelTab = "projections" | "pickem" | "compare" | "futures" | "value" | "fantasy" | "leaders";
+const TAB_LABELS: Record<ModelTab, string> = {
+  projections: "Projections", pickem: "Pick'em", compare: "Compare odds",
+  futures: "Futures", value: "Value", fantasy: "Fantasy", leaders: "Leaders",
+};
+const ALL_TABS: ModelTab[] = ["projections", "pickem", "compare", "futures", "value", "fantasy", "leaders"];
+// Summer League has no player feed (no props/fantasy/leaders) and no season-long
+// title market (no futures/compare), so it shows only the game-level surfaces.
+const LEAGUE_TABS: Partial<Record<string, ModelTab[]>> = {
+  nbasummer: ["projections", "pickem", "value"],
+};
+
+export default function ModelView({ league }: { league: "nba" | "nbl" | "wnba" | "nbasummer" }) {
+  const tabs = LEAGUE_TABS[league] ?? ALL_TABS;
+  const [tab, setTab] = useState<ModelTab>("projections");
   const [fixtures, setFixtures] = useState<Fixture[] | null>(null);
   const [futures, setFutures] = useState<FuturesTeam[] | null>(null);
   const [odds, setOdds] = useState<OddsGame[] | null>(null);
@@ -232,13 +245,9 @@ export default function ModelView({ league }: { league: "nba" | "nbl" | "wnba" }
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
-        <button style={tabBtn(tab === "projections")} onClick={() => setTab("projections")}>Projections</button>
-        <button style={tabBtn(tab === "pickem")} onClick={() => setTab("pickem")}>Pick&apos;em</button>
-        <button style={tabBtn(tab === "compare")} onClick={() => setTab("compare")}>Compare odds</button>
-        <button style={tabBtn(tab === "futures")} onClick={() => setTab("futures")}>Futures</button>
-        <button style={tabBtn(tab === "value")} onClick={() => setTab("value")}>Value</button>
-        <button style={tabBtn(tab === "fantasy")} onClick={() => setTab("fantasy")}>Fantasy</button>
-        <button style={tabBtn(tab === "leaders")} onClick={() => setTab("leaders")}>Leaders</button>
+        {tabs.map((t) => (
+          <button key={t} style={tabBtn(tab === t)} onClick={() => setTab(t)}>{TAB_LABELS[t]}</button>
+        ))}
         {updated && <span style={{ marginLeft: "auto", color: "var(--muted)", fontSize: ".75rem", alignSelf: "center" }}>updated {updated}</span>}
       </div>
 

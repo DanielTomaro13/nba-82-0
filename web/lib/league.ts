@@ -8,7 +8,7 @@
  * site behaves identically — the WNBA is layered on additively.
  */
 
-export type LeagueId = "nba" | "wnba";
+export type LeagueId = "nba" | "wnba" | "nbasummer";
 
 export interface LeagueConfig {
   id: LeagueId;
@@ -64,10 +64,29 @@ export const LEAGUES: Record<LeagueId, LeagueConfig> = {
     statsSource: "WNBA Stats",
     hasDivisions: false,
   },
+  // NBA Summer League — the July showcase (Las Vegas + California Classic + Salt
+  // Lake City). Unlike the NBA/WNBA sites this is a stats-&-projections surface
+  // only: no perfect-season chase or games (a ~5-game neutral-site event has no
+  // 82-0 analogue, and ESPN exposes no Summer League player/boxscore feed). It is
+  // driven by the shared Basketball-Modelling feed (predictions, ratings, odds),
+  // which publishes the "nbasummer" league. seasonGames/perfectLabel are set for
+  // interface completeness but aren't surfaced.
+  nbasummer: {
+    id: "nbasummer",
+    short: "Summer League",
+    brand: "NBA Summer League",
+    seasonGames: 5, // pool-play games per team (not a perfect-season chase)
+    perfectLabel: "5–0",
+    basePath: "/summer",
+    dataSub: "summer",
+    officialSite: "https://www.nba.com/summer-league",
+    statsSource: "ESPN",
+    hasDivisions: false,
+  },
 };
 
 export const DEFAULT_LEAGUE: LeagueId = "nba";
-export const ALL_LEAGUES: LeagueId[] = ["nba", "wnba"];
+export const ALL_LEAGUES: LeagueId[] = ["nba", "wnba", "nbasummer"];
 
 export function getLeague(id?: LeagueId | string | null): LeagueConfig {
   const key = (id ?? DEFAULT_LEAGUE) as LeagueId;
