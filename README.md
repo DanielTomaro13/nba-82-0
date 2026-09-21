@@ -1,5 +1,7 @@
 # 🏀 NBA 82-0
 
+> **Status, September 2026:** GitHub Actions are currently paused on this repo, so automated data refreshes and deploys are not running. The data and any live site reflect the last build.
+
 > Build an all-time NBA team and chase a perfect 82-0 season — plus a vault of basketball mini-games, standings and stats.
 > Live at **[nba82-0.com](https://nba82-0.com)**.
 
