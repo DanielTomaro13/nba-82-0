@@ -291,6 +291,7 @@ select {
 .mm-promo {
   position: relative;
   z-index: 1;
+  outline: none;
   width: 100%;
   display: grid;
   gap: 18px;
@@ -337,7 +338,7 @@ select {
   border-radius: 12px;
 }
 
-@media (min-width: 820px) and (hover: hover) and (pointer: fine) {
+@media (min-width: 820px) {
   .mm-promo-root {
     align-items: center;
     padding: 28px;
@@ -369,6 +370,37 @@ select {
     min-width: 156px;
     padding: 0.8rem 1.4rem;
     font-size: 1.08rem;
+  }
+}
+
+/* iPhone / iPad Safari: keep the large sheet at any orientation, including
+   landscape widths that would otherwise use the desktop card. */
+@supports (-webkit-touch-callout: none) {
+  .mm-promo-root {
+    align-items: flex-end;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+  .mm-promo {
+    width: 100%;
+    gap: 18px;
+    padding: 1.35rem 1.15rem 1.2rem;
+    border-radius: 22px;
+  }
+  .mm-promo-copy { gap: 14px; align-items: flex-start; }
+  .mm-promo-mark { width: 72px; height: 72px; border-radius: 18px; }
+  .mm-promo h2 { font-size: 1.85rem; }
+  .mm-promo p { font-size: 1.125rem; line-height: 1.45; }
+  .mm-promo-actions { display: grid; justify-content: stretch; }
+  .mm-promo-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 0.7rem 0.9rem;
+    font-size: 1.05rem;
   }
 }
 
