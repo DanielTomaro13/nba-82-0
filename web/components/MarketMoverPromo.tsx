@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const KEY = "nba82.marketmover.promoUntil";
@@ -33,6 +33,16 @@ function hiddenUntil() {
 export default function MarketMoverPromo() {
   const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  const dismiss = useCallback(() => {
+    try {
+      localStorage.setItem(KEY, String(Date.now() + HIDE_MS));
+    } catch {
+      /* storage blocked — still close for this view */
+    }
+    setOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!showOn(pathname) || hiddenUntil() > Date.now()) {
@@ -49,60 +59,65 @@ export default function MarketMoverPromo() {
       if (e.key === "Escape") dismiss();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  function dismiss() {
-    try {
-      localStorage.setItem(KEY, String(Date.now() + HIDE_MS));
-    } catch {
-      /* storage blocked — still close for this view */
-    }
-    setOpen(false);
-  }
+    dialogRef.current?.focus();
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open, dismiss]);
 
   if (!open) return null;
 
   return (
-    <aside
-      className="pop"
-      role="dialog"
-      aria-label="MarketMover"
-      style={{
-        position: "fixed",
-        zIndex: 70,
-        right: "max(12px, env(safe-area-inset-right))",
-        bottom: "max(12px, env(safe-area-inset-bottom))",
-        width: "min(380px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)))",
-        display: "grid",
-        gap: 12,
-        padding: "0.9rem 0.95rem",
-        background: "var(--panel)",
-        border: "1px solid var(--border)",
-        borderRadius: 14,
-        boxShadow: "0 18px 50px rgba(0,0,0,.45)",
-      }}
-    >
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <img
-          src={MARK}
-          alt=""
-          width={40}
-          height={40}
-          style={{ width: 40, height: 40, borderRadius: 10, display: "block", flexShrink: 0 }}
-        />
-        <p style={{ margin: 0, fontSize: "0.92rem", lineHeight: 1.45 }}>
-          MarketMover — live prices and model markets in one place. More markets coming.
-        </p>
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" className="btn" onClick={dismiss} style={{ minHeight: 40, padding: "0.4rem 0.8rem" }}>
-          Dismiss
-        </button>
-        <a className="btn btn-primary" href={HREF} onClick={dismiss} style={{ minHeight: 40, padding: "0.4rem 0.85rem" }}>
-          Visit MarketMover
-        </a>
-      </div>
-    </aside>
+    <div className="mm-promo-root">
+      <button type="button" className="mm-promo-backdrop" aria-label="Dismiss" onClick={dismiss} />
+      <aside
+        ref={dialogRef}
+        className="mm-promo pop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mm-promo-title"
+        aria-describedby="mm-promo-body"
+        tabIndex={-1}
+      >
+        <div className="mm-promo-copy">
+          <img src={MARK} alt="" width={92} height={92} className="mm-promo-mark" />
+          <div>
+            <h2 id="mm-promo-title">MarketMover</h2>
+            <p id="mm-promo-body">Live prices and model markets in one place. More markets coming.</p>
+          </div>
+        </div>
+        <div className="mm-promo-actions">
+          <button type="button" className="btn" onClick={dismiss}>
+            Dismiss
+          </button>
+          <a className="btn btn-primary" href={HREF} onClick={dismiss}>
+            Visit MarketMover
+          </a>
+        </div>
+      </aside>
+    </div>
   );
 }

@@ -264,6 +264,114 @@ select {
   .sister-link { padding: 6px 11px; }
 }
 
+/* MarketMover promo: phone sheet (nearly full width, 48px targets) by default;
+   centered ~560px card on desktop. */
+.mm-promo-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+}
+.mm-promo-backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(6, 6, 10, 0.66);
+  cursor: pointer;
+}
+.mm-promo {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: grid;
+  gap: 18px;
+  padding: 1.35rem 1.15rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+.mm-promo-copy {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.mm-promo-mark {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  display: block;
+  flex-shrink: 0;
+}
+.mm-promo h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.85rem;
+  line-height: 1.05;
+  font-weight: 600;
+}
+.mm-promo p {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.mm-promo-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.mm-promo-actions .btn {
+  min-height: 48px;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  font-size: 1.05rem;
+  border-radius: 12px;
+}
+
+@media (min-width: 820px) and (hover: hover) and (pointer: fine) {
+  .mm-promo-root {
+    align-items: center;
+    padding: 28px;
+  }
+  .mm-promo {
+    width: min(560px, 92vw);
+    gap: 22px;
+    padding: 1.75rem 1.8rem 1.55rem;
+    border-radius: 18px;
+  }
+  .mm-promo-copy {
+    gap: 18px;
+    align-items: center;
+  }
+  .mm-promo-mark {
+    width: 92px;
+    height: 92px;
+    border-radius: 22px;
+  }
+  .mm-promo h2 { font-size: 2.35rem; }
+  .mm-promo p { font-size: 1.2rem; line-height: 1.5; }
+  .mm-promo-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .mm-promo-actions .btn {
+    width: auto;
+    min-height: 52px;
+    min-width: 156px;
+    padding: 0.8rem 1.4rem;
+    font-size: 1.08rem;
+  }
+}
+
 /* respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
