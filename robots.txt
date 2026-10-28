@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+
+Host: https://nba82-0.com
+Sitemap: https://nba82-0.com/sitemap.xml
