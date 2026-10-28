@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const oswald = Oswald({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-oswald", display: "swap" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jbmono", display: "swap" });
 import SisterSites from "@/components/SisterSites";
+import MarketMoverPromo from "@/components/MarketMoverPromo";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import JsonLd from "@/components/JsonLd";
@@ -119,6 +120,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AdUnit slot={AD_SLOTS.inline} />
         </div>
         <SiteFooter />
+        <MarketMoverPromo />
         <JsonLd data={orgLd} />
         <JsonLd data={appLd} />
         <JsonLd data={orgEntityLd} />
